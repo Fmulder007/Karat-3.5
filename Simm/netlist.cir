@@ -1,0 +1,34 @@
+* Qucs 24.2.1  C:/github/Karat-3FM/Simm/3.5/test_bidamp2.sch
+.INCLUDE "E:/YandexDisk/Электроника/Программы/qucs_s_win64/share/qucs-s/xspice_cmlib/include/ngspice_mathfunc.inc"
+R1 _net0 _net1  200 tc1=0.0 tc2=0.0 
+R3 _net2 _net3  10K tc1=0.0 tc2=0.0 
+D_1N4148_2 _net0 _net4 DMOD_D_1N4148_2 AREA=1.0 Temp=26.85
+.MODEL DMOD_D_1N4148_2 D (Is=2.22e-10 N=1.65 Cj0=4e-12 M=0.333 Vj=0.7 Fc=0.5 Rs=0.0686 Tt=5.76e-09 Kf=0 Af=1 Bv=75 Ibv=1e-06 Xti=3 Eg=1.11 Tcv=0 Trs=0 Ttt1=0 Ttt2=0 Tm1=0 Tm2=0 Tnom=26.85 )
+C2 _net3 0  100N 
+C4 _net0 out  100N 
+VP2 out 0 dc 0 ac 0.632456 SIN(0 0.632456 1MEG) portnum 2 z0 200
+C3 in _net2  100N 
+V1 _net1 0 DC 8
+QT_MMDT3946_2 0 _net2 _net5 QMOD_T_MMDT3946_2 AREA=1.0 TEMP=26.85
+.MODEL QMOD_T_MMDT3946_2 pnp (Is=7.21e-16 Nf=1 Nr=1 Ikf=0.0486 Ikr=0.12 Vaf=114 Var=20 Ise=1.01e-12 Ne=2 Isc=0 Nc=2 Bf=410 Br=4 Rbm=0 Irb=0 Rc=0.483 Re=1.21 Rb=4.83 Cje=1.09e-11 Vje=1.1 Mje=0.5 Cjc=7.57e-12 Vjc=0.3 Mjc=0.3 Xcjc=1 Cjs=0 Vjs=0.75 Mjs=0 Fc=0.5 Tf=5.58e-10 Xtf=0 Vtf=0 Itf=0 Tr=8.41e-08 Kf=0 Af=1 Ptf=0 Xtb=0 Xti=3 Eg=1.11 Tnom=26.85 )
+R6 _net3 _net0  10K tc1=0.0 tc2=0.0 
+QT_MMDT3946_7 _net4 _net3 _net5 QMOD_T_MMDT3946_7 AREA=1.0 TEMP=26.85
+.MODEL QMOD_T_MMDT3946_7 npn (Is=5.81e-16 Nf=1 Nr=1 Ikf=0.304 Ikr=0.75 Vaf=114 Var=24 Ise=2.28e-12 Ne=2 Isc=0 Nc=2 Bf=410 Br=4 Rbm=0 Irb=0 Rc=0.283 Re=0.707 Rb=2.83 Cje=9.67e-12 Vje=1.1 Mje=0.5 Cjc=6.86e-12 Vjc=0.3 Mjc=0.3 Xcjc=1 Cjs=0 Vjs=0.75 Mjs=0 Fc=0.5 Tf=4.5e-10 Xtf=0 Vtf=0 Itf=0 Tr=7.02e-08 Kf=0 Af=1 Ptf=0 Xtb=0 Xti=3 Eg=1.11 Tnom=26.85 )
+R7 0 _net2  200 tc1=0.0 tc2=0.0 
+VP1 in 0 dc 0 ac 0.2 SIN(0 0.2 10MEG) portnum 1 z0 200
+
+.control
+
+SP LIN 200 1MEG 100MEG
+write spice4qucs.sp1.plot S_1_1 Y_1_1 Z_1_1 S_1_2 Y_1_2 Z_1_2 S_2_1 Y_2_1 Z_2_1 S_2_2 Y_2_2 Z_2_2
+destroy all
+reset
+
+tran 5.02513e-09 0.0001 9.9e-05 
+write spice4qucs.tr1.plot v(in) v(out)
+destroy all
+reset
+
+exit
+.endc
+.END
