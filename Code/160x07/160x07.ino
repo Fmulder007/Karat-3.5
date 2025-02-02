@@ -341,8 +341,8 @@ void pushknob () {  // Обработка нажатия на кноб
             break;
         }
       }
-      if (menu == 104) band_setting.mode = false;
-      if (menu == 105) band_setting.mode = true;
+      //if (menu == 104) band_setting.mode = false;
+      //if (menu == 105) band_setting.mode = true;
     }
     mainscreen();
   }
