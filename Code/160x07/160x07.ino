@@ -627,13 +627,16 @@ void mainscreen() { //Процедура рисования главного э�
           display.print("L");
         }
         if ((fwdpower - revpower) > 0) {
-          if ((fwdpower + revpower) / (fwdpower - revpower) < 10)display.print(" ");
-          display.print((fwdpower + revpower) / (fwdpower - revpower));
+          int swr1 = (fwdpower + revpower) * 100 / (fwdpower - revpower);
+          if ((swr1 / 100) < 10)display.print(" ");
+          display.print(swr1 / 100);
           display.print(".");
-          display.print(((fwdpower + revpower) % (fwdpower - revpower)) % 10);
+          byte swr23 = swr1 % 100;
+          if (swr23 < 10) display.print("0");
+          display.print(swr23);
         }
-        display.fillRect(64, 23, (map(fwdpower, 1, 1023, 0, 100)), 4, WHITE);
-        display.fillRect(64, 28, (map(revpower, 1, 1023, 0, 100)), 4, WHITE);
+        display.fillRect(66, 23, (map(fwdpower, 1, 1023, 0, 128)), 4, WHITE);
+        display.fillRect(66, 28, (map(revpower, 1, 1023, 0, 128)), 4, WHITE);
       }
       else {// Если прием, то рисовать температуру часы, полосу и диапазон
         //char ddot
