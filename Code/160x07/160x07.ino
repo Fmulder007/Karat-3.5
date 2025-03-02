@@ -627,11 +627,11 @@ void mainscreen() { //Процедура рисования главного э�
           display.print("L");
         }
         if ((fwdpower - revpower) > 0) {
-          int swr1 = (fwdpower + revpower) * 100 / (fwdpower - revpower);
+          int swr1 = (long)(fwdpower + revpower) * 100 / (fwdpower - revpower);
           if ((swr1 / 100) < 10)display.print(" ");
           display.print(swr1 / 100);
           display.print(".");
-          byte swr23 = swr1 % 100;
+          int swr23 = swr1 % 100;
           if (swr23 < 10) display.print("0");
           display.print(swr23);
         }
