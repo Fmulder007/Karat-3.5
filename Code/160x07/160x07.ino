@@ -76,7 +76,7 @@ struct general_set {
   bool cmode = false; // Канальный режим.
   uint32_t bfo_freq = 34430000UL; // Начальная частота BFO при первом включении.
   uint32_t lsb_lo_freq = 13558400UL; // Начальная частота опоры USB при первом включении.
-  uint32_t usb_lo_freq = 13561050UL; // Начальная частота опоры LSB при первом включении.
+  uint32_t usb_lo_freq = 13561000UL; // Начальная частота опоры LSB при первом включении.
   int16_t Si_Xtall_calFreq = -380; // Начальная частота калибровки кварца, Гц.
   uint8_t batt_cal = 208; // Начальная калибровка вольтметра.
   bool reverse_encoder = false; //Реверс энкодера.
@@ -286,12 +286,14 @@ void txsensor () {
   if (txsens && !txen) {
     txen = true;
     bpfset();
+    vfosetup();
     mainscreen();
   }
   //Если радио на передаче и отпустили ТХ то txen = false
   if (!txsens && txen) {
     txen = false;
     bpfset();
+    vfosetup();
     mainscreen();
   }
 }
@@ -577,7 +579,7 @@ void powermeter () { // Измеритель уровня выхода
   //revpower = constrain(analogRead(revpin), 1, 1023);
   analogRead(fwdpin);
   fwdpower = (12 * fwdpower + 4 * (analogRead(fwdpin) + 1)) >> 4;
-  //analogRead(revpin);
+  analogRead(revpin);
   revpower = (12 * revpower + 4 * (analogRead(revpin) + 1)) >> 4;
 }
 
