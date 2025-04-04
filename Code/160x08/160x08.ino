@@ -1154,6 +1154,7 @@ void pttsensor() {
             Timer1.outputDisable(CHANNEL_B); // Если включен тональник, выключаем его
             delay(100);
             toneen = false;
+			bpfset();
           }
           vfosetup();
           state = false;
@@ -1177,6 +1178,7 @@ void pttsensor() {
           Timer1.setFrequency(500 * 2);                 // Включаем тональник на 500 герц
           Timer1.outputEnable(CHANNEL_B, TOGGLE_PIN);   // в момент срабатывания таймера пин будет переключаться
           toneen = true;
+		  bpfset();
         }
       }
     }
@@ -1204,7 +1206,7 @@ void bpfset() {
   if (bpf_freq >= general_setting.b3) bpf_set = 3;
   if (bpf_freq >= general_setting.b4) bpf_set = 4;
   bitSet(byteToSend, bpf_set); // Установка нужного бита управления ДПФ
-  if (txen && general_setting.PowerDoubler) bitSet(byteToSend, 5); //Установка разрешения работы удвоителя
+  if (txen && general_setting.PowerDoubler && !toneen) bitSet(byteToSend, 5); //Установка разрешения работы удвоителя
   if (general_setting.ALC_RX)bitSet(byteToSend, 6); //Установка разрешения работы АРУ
   if (general_setting.ATT_RX)bitSet(byteToSend, 7); //Установка разрешения работы ATT
   digitalWrite(latchPin, LOW);
