@@ -227,8 +227,7 @@ void loop() { // Главный цикл
   cw();
   rxtxcontrol();
   pushknob();
-  if (!general_setting.cmode) readencoder(); //Если не в канальном режиме - считать енкодер
-  if (general_setting.cmode && menu) readencoder(); //Если в канальном режиме и не на главном экране - считать енкодер
+  readencoder(); //считать енкодер
   txsensor();
   battmeter();
   if (!menu) {
@@ -369,25 +368,27 @@ void readencoder() { // работа с енкодером
     switch (menu) {
 
       case 0: //Основная настройка частоты
-        if (newPosition > oldPosition && band_setting.vfo_freq <= band_setting.max_freq * 100000UL) {
-          if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
-            band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL) - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
+        if (!general_setting.cmode) {
+          if (newPosition > oldPosition && band_setting.vfo_freq <= band_setting.max_freq * 100000UL) {
+            if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
+              band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL) - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
+            }
+            else {
+              band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL);
+            }
           }
-          else {
-            band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL);
+          if (newPosition < oldPosition && band_setting.vfo_freq >= band_setting.min_freq * 100000UL) {
+            if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
+              band_setting.vfo_freq = band_setting.vfo_freq - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
+            }
+            else {
+              band_setting.vfo_freq = band_setting.vfo_freq - (arraystp[general_setting.stp] * 10UL);
+            }
           }
+          if (band_setting.vfo_freq < band_setting.min_freq * 100000UL) band_setting.vfo_freq = band_setting.min_freq * 100000UL;
+          if (band_setting.vfo_freq > band_setting.max_freq * 100000UL) band_setting.vfo_freq = band_setting.max_freq * 100000UL;
+          vfosetup();
         }
-        if (newPosition < oldPosition && band_setting.vfo_freq >= band_setting.min_freq * 100000UL) {
-          if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
-            band_setting.vfo_freq = band_setting.vfo_freq - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
-          }
-          else {
-            band_setting.vfo_freq = band_setting.vfo_freq - (arraystp[general_setting.stp] * 10UL);
-          }
-        }
-        if (band_setting.vfo_freq < band_setting.min_freq * 100000UL) band_setting.vfo_freq = band_setting.min_freq * 100000UL;
-        if (band_setting.vfo_freq > band_setting.max_freq * 100000UL) band_setting.vfo_freq = band_setting.max_freq * 100000UL;
-        vfosetup();
         break;
 
       case 1: //Переключение каналов

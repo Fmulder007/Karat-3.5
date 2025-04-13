@@ -227,8 +227,7 @@ void loop() { // Главный цикл
   cw();
   rxtxcontrol();
   pushknob();
-  if (!general_setting.cmode) readencoder(); //Если не в канальном режиме - считать енкодер
-  if (general_setting.cmode && menu) readencoder(); //Если в канальном режиме и не на главном экране - считать енкодер
+  readencoder(); //считать енкодер
   txsensor();
   battmeter();
   if (!menu) {
@@ -369,25 +368,27 @@ void readencoder() { // работа с енкодером
     switch (menu) {
 
       case 0: //Основная настройка частоты
-        if (newPosition > oldPosition && band_setting.vfo_freq <= band_setting.max_freq * 100000UL) {
-          if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
-            band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL) - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
+        if (!general_setting.cmode) {
+          if (newPosition > oldPosition && band_setting.vfo_freq <= band_setting.max_freq * 100000UL) {
+            if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
+              band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL) - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
+            }
+            else {
+              band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL);
+            }
           }
-          else {
-            band_setting.vfo_freq = band_setting.vfo_freq + (arraystp[general_setting.stp] * 10UL);
+          if (newPosition < oldPosition && band_setting.vfo_freq >= band_setting.min_freq * 100000UL) {
+            if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
+              band_setting.vfo_freq = band_setting.vfo_freq - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
+            }
+            else {
+              band_setting.vfo_freq = band_setting.vfo_freq - (arraystp[general_setting.stp] * 10UL);
+            }
           }
+          if (band_setting.vfo_freq < band_setting.min_freq * 100000UL) band_setting.vfo_freq = band_setting.min_freq * 100000UL;
+          if (band_setting.vfo_freq > band_setting.max_freq * 100000UL) band_setting.vfo_freq = band_setting.max_freq * 100000UL;
+          vfosetup();
         }
-        if (newPosition < oldPosition && band_setting.vfo_freq >= band_setting.min_freq * 100000UL) {
-          if (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL)) {
-            band_setting.vfo_freq = band_setting.vfo_freq - (band_setting.vfo_freq % (arraystp[general_setting.stp] * 10UL));
-          }
-          else {
-            band_setting.vfo_freq = band_setting.vfo_freq - (arraystp[general_setting.stp] * 10UL);
-          }
-        }
-        if (band_setting.vfo_freq < band_setting.min_freq * 100000UL) band_setting.vfo_freq = band_setting.min_freq * 100000UL;
-        if (band_setting.vfo_freq > band_setting.max_freq * 100000UL) band_setting.vfo_freq = band_setting.max_freq * 100000UL;
-        vfosetup();
         break;
 
       case 1: //Переключение каналов
@@ -683,10 +684,33 @@ void mainscreen() { //Процедура рисования главного э�
       break;
 
     case 1: //Меню 1 - канал
-      display.println(general_setting.band);
-      display.setTextSize(1);
+      if (general_setting.band < 10)display.print(" "); // Если номер канала меньше 10 добавить пробел
+      display.print(general_setting.band); // выводим номер канала
+      display.setTextSize(2); // Делаем меньше шрифт
+      display.setCursor(39, display.getCursorY() + 7); // Переносим курсор на место начала надписи частоты
+      if ((band_setting.vfo_freq / 1000000) < 10) display.print(" "); // Если частота меньше 10 МГц, в начале пробел
+      display.print(band_setting.vfo_freq / 1000000); // Вывод МГц
+      display.setCursor(display.getCursorX() + 5, display.getCursorY()); // Переводим курсор чуть правее текущего положения
+      if ((band_setting.vfo_freq % 1000000) / 1000 < 100) display.print("0");
+      if ((band_setting.vfo_freq % 1000000) / 1000 < 10) display.print("0");
+      display.print((band_setting.vfo_freq % 1000000) / 1000); //Выводим КГц
+      display.setTextSize(1); // Для сотен и десятков герц делаем шрифт поменьше
+      //display.setCursor(display.getCursorX() + 5, display.getCursorY() + 7); //Переводим курсор чуть ниже текущего положения
+      display.setCursor(108, 0); //Переводим курсор чуть выше текущего положения
+      if (band_setting.mode) {
+        display.println("USB");
+      }
+      else
+      {
+        display.println("LSB");
+      }
+      display.setCursor(108, 14); //Переводим курсор чуть выше текущего положения
+      if ((band_setting.vfo_freq % 1000) / 10 < 10) display.print("0"); //Если герц <10 то выводим "0" перед ними.
+      display.print((band_setting.vfo_freq % 1000) / 10);
+      //display.setTextSize(1);
+      display.setCursor(0, 25); // Переносим курсор на место начала второй строки
       display.print(menu);
-      display.print("  Ch from 0 to ");
+      display.print(" CH Select 0 to ");
       display.print(general_setting.number_of_bands);
       break;
 
