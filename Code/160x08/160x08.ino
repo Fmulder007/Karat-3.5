@@ -570,7 +570,7 @@ void readencoder() { // работа с енкодером
 
     }
     actenc = millis();
-    actencf = true;
+    if(!menu && !general_setting.cmode)actencf = true;
     mainscreen();
     oldPosition = newPosition;
   }
