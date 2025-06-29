@@ -67,6 +67,7 @@ char ver[ ] = "160x08";
 #include "DallasTemperature.h"
 #include "DS1307RTC.h"
 #include "GyverTimers.h"
+#include "EEPROM.h"
 
 
 //Общие настройки
@@ -161,6 +162,9 @@ uint32_t actenc = 0;
 
 byte byteToSend = 0;
 byte bpf_set = 0;
+
+byte backup_index = 0;
+byte restore_index = 0;
 
 static Eeprom24C32_64 AT24C32(0x50);
 Si5351 si;
@@ -327,7 +331,7 @@ void pushknob () {  // Обработка нажатия на кноб
         menu ++; //Переходим на меню дальше
         if (menu == 8) menu = 0; //Если меню 8 выйти на главный экран
         if (menu > 28 && menu < 100) menu = 20; //Если меню > 30 но < 100 перейти на меню 20
-        if (menu > 110) menu = 100; //Если меню больше 111 перейти на меню 100
+        if (menu > 112) menu = 100; //Если меню больше 112 перейти на меню 100
       }
       if (!general_setting.number_of_bands && (menu == 1 || menu == 100)) menu++; // Если каналы не настроены, то нет меню 1 и 100
       if (general_setting.cmode && general_setting.number_of_bands) {                             //Если в канальном режиме, то пропускать меню 2,3,20,21,22,28,29
@@ -568,10 +572,28 @@ void readencoder() { // работа с енкодером
         bpfset();
         break;
 
+      case 111: // Резервное копирование настроек
+        if (newPosition > oldPosition && backup_index < 10) backup_index++;
+        if (newPosition < oldPosition && backup_index > 0) backup_index--;
+        if (backup_index == 10) {
+          //oldPosition = newPosition;
+          backup();
+        }
+        break;
+
+      case 112: // Резервное восстановение настроек
+        if (newPosition > oldPosition && restore_index < 10) restore_index++;
+        if (newPosition < oldPosition && restore_index > 0) restore_index--;
+        if (restore_index == 10) {
+          //oldPosition = newPosition;
+          restore();
+        }
+        break;
+
     }
     actenc = millis();
-    if(!general_setting.cmode)actencf = true;
-    if(menu && general_setting.cmode)actencf = true;
+    if (!general_setting.cmode)actencf = true;
+    if (menu && general_setting.cmode)actencf = true;
     mainscreen();
     oldPosition = newPosition;
   }
@@ -971,6 +993,20 @@ void mainscreen() { //Процедура рисования главного э�
       display.print("  BPF b4 ");
       display.print("kHz");
       break;
+
+    case 111: //Backup Setting
+      display.println(backup_index);
+      display.setTextSize(1);
+      display.print(menu);
+      display.print(" Backup to 10");
+      break;
+
+    case 112: //Restore setting
+      display.println(restore_index);
+      display.setTextSize(1);
+      display.print(menu);
+      display.print(" Restore to 10");
+      break;
   }
   display.display();
   //debug();
@@ -1239,4 +1275,41 @@ void bpfset() {
   digitalWrite(latchPin, HIGH);
   //bpfUpdate = true;
   //}
+}
+
+void backup() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.setTextColor(WHITE);
+  display.setTextSize(2);
+  display.print("Backup...");
+  display.display();
+  int eeAddress = 0; //Устанавливаем адрес на 0
+  EEPROM.put(eeAddress, general_setting); // Backup general_setting
+  eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
+  EEPROM.put(eeAddress, band_setting); // Backup band_setting
+  display.print(" Ok");
+  display.display();
+  delay(1000);
+  menu = 0;
+  //asm volatile("jmp 0x00");
+}
+
+void restore() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.setTextColor(WHITE);
+  display.setTextSize(2);
+  display.print("Restore...");
+  display.display();
+  int eeAddress = 0; //Устанавливаем адрес на 0
+  EEPROM.get(eeAddress, general_setting); // Restore general_setting
+  eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
+  EEPROM.get(eeAddress, band_setting); // Restore band_setting
+  memwrite ();
+  display.print(" Ok");
+  display.display();
+  delay(1000);
+  //menu=0;
+  asm volatile("jmp 0x00");
 }
