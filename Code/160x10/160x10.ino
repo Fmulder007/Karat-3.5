@@ -676,8 +676,8 @@ void mainscreen() { //Процедура рисования главного э�
           if (swr23 < 10) display.print("0");
           display.print(swr23);
         }
-        display.rect(x00, 23, x00 + (map(fwdpower, 1, 1023, 0, 128)), 27, OLED_FILL);
-        display.rect(x00, 28, x00 + (map(revpower, 1, 1023, 0, 128)), 32, OLED_FILL);
+        display.rect(x00, 23, x00 + (map(fwdpower, 1, 1023, 0, 128)), 26, OLED_FILL);
+        display.rect(x00, 28, x00 + (map(revpower, 1, 1023, 0, 128)), 31, OLED_FILL);
       }
       else {// Если прием, то рисовать температуру часы, полосу и диапазон
         //char ddot
