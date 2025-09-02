@@ -1011,14 +1011,14 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(backup_index);
       display.setScale(1);
       display.print(menu);
-      display.print(" 10 для рез. коп.");
+      display.print(" Резерв => 10");
       break;
 
     case 112: //Restore setting
       display.println(restore_index);
       display.setScale(1);
       display.print(menu);
-      display.print(" 10 для восстанов.");
+      display.print(" Восстанов => 10");
       break;
   }
   display.update();
@@ -1295,13 +1295,13 @@ void backup() {
   display.setCursor(0, 0);
   //display.setTextColor(WHITE);
   display.setScale(2);
-  display.print("Backup...");
+  display.print("Резерв...");
   display.update();
   int eeAddress = 0; //Устанавливаем адрес на 0
   EEPROM.put(eeAddress, general_setting); // Backup general_setting
   eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
   EEPROM.put(eeAddress, band_setting); // Backup band_setting
-  display.print(" Ok");
+  display.print("Ok");
   display.update();
   delay(1000);
   menu = 0;
@@ -1313,7 +1313,7 @@ void restore() {
   display.setCursor(0, 0);
   //display.setTextColor(WHITE);
   display.setScale(2);
-  display.print("Restore...");
+  display.print("Восстан...");
   display.update();
   int eeAddress = 0; //Устанавливаем адрес на 0
   EEPROM.get(eeAddress, general_setting); // Restore general_setting
