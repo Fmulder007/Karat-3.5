@@ -326,6 +326,7 @@ void pushknob () {  // Обработка нажатия на кноб
   if (knobdown && !knobup) {              //Если кноб нажат
     knobup = true;                        // отмечаем флаг что кноб отпущен
     oldPosition = myEnc.read() / enc_div; //обнуляем положение энкодера, избавляет от случайных поворотов во время нажатия
+    if (general_setting.reverse_encoder) oldPosition *= (-1);
     long knobupmillis = millis();
     if (knobupmillis - knobMillis >= 1000) { //Если длительное нажатие
       if (menu == 0) {
