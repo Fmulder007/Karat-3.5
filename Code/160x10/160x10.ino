@@ -746,7 +746,7 @@ void mainscreen() { //Процедура рисования главного э�
       display.setCursorXY(0, 24); // Переносим курсор на место начала второй строки
       display.print(menu);
 
-      display.print(" Выбор CH от 0 до ");
+      display.print(" Выб. КАНАЛ 0 <=> ");
       display.print(general_setting.number_of_bands);
       break;
 
@@ -1296,7 +1296,7 @@ void backup() {
   display.setCursor(0, 0);
   //display.setTextColor(WHITE);
   display.setScale(2);
-  display.print("Резерв...");
+  display.print("Резерв..");
   display.update();
   int eeAddress = 0; //Устанавливаем адрес на 0
   EEPROM.put(eeAddress, general_setting); // Backup general_setting
@@ -1314,7 +1314,7 @@ void restore() {
   display.setCursor(0, 0);
   //display.setTextColor(WHITE);
   display.setScale(2);
-  display.print("Восстан...");
+  display.print("Восстан..");
   display.update();
   int eeAddress = 0; //Устанавливаем адрес на 0
   EEPROM.get(eeAddress, general_setting); // Restore general_setting
