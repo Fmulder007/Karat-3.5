@@ -1,0 +1,26 @@
+;	              Name: M-D2MM_T3
+;	              Tool: Ôנוחא (O2 לל)
+;	    Tool passDepth: 2
+;	     Tool stepover: 1
+;	Tool feedRate mm/s: 1.66667
+;	             Depth: 0
+;	              Side: Top
+G21 G17 G90
+M3 S12000
+G0Z20
+X6.03Y-3.81
+Z2
+G1Z0F600
+G0Z10
+X4.44Y-59.06
+Z2
+G1Z0
+G0Z10
+X71.28Y-31.75
+Z2
+G1Z0
+G0Z10
+Z20
+X0Y0
+M5
+M30

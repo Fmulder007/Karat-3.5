@@ -1,0 +1,58 @@
+;	              Name: D-D0.8MM_T2
+;	              Tool: Ñגונכמ (O0.8 לל)
+;	    Tool passDepth: 2
+;	     Tool stepover: 0
+;	Tool feedRate mm/s: 0
+;	             Depth: 0
+;	              Side: Top
+G21 G17 G90
+M3 S12000
+G0Z20
+X13.65Y-6.8
+Z2
+G1Z-0.231F600
+G0Z10
+X23.61Y-10.2
+Z2
+G1Z-0.231
+G0Z10
+X36.83Y-12.7
+Z2
+G1Z-0.231
+G0Z10
+X57.78Y-11.75
+Z2
+G1Z-0.231
+G0Z10
+X58.94Y-41.87
+Z2
+G1Z-0.231
+G0Z10
+X66.38Y-55.55
+Z2
+G1Z-0.231
+G0Z10
+X10.85Y-58.29
+Z2
+G1Z-0.231
+G0Z10
+X7.18Y-64.41
+Z2
+G1Z-0.231
+G0Z10
+X8.1Y-37.9
+Z2
+G1Z-0.231
+G0Z10
+X1.75
+Z2
+G1Z-0.231
+G0Z10
+Y-17.58
+Z2
+G1Z-0.231
+G0Z10
+Z20
+X0Y0
+M5
+M30

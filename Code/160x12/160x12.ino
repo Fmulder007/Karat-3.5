@@ -663,10 +663,10 @@ void mainscreen() { //Процедура рисования главного э�
 
       if (txen) {//Если передача, то вывод показометра мощности
         if (general_setting.PowerDoubler) {
-          display.print("H");
+          display.print("В");
         }
         else {
-          display.print("L");
+          display.print("Н");
         }
         if ((fwdpower - revpower) > 0) {
           int swr1 = (long)(fwdpower + revpower) * 100 / (fwdpower - revpower);
@@ -921,7 +921,7 @@ void mainscreen() { //Процедура рисования главного э�
       display.print(mybatt / 10);
       display.print(".");
       display.print(mybatt % 10);
-      display.print(" Вольт");
+      display.print(" В");
       break;
 
     case 102: //Калибровка термодатчика
