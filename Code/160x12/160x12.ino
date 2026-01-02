@@ -53,7 +53,7 @@ char ver[ ] = "160x12";
 #define rxenpin 8 // ATU-100 en out pin.
 #define tonefreq 500 // Частота тонального сигнала для настройки TX.
 #define pttdelay 50 //Задержка выключения PTT.
-#define minEncSpeed 500 // Минимальная скорость вращения энкодера.
+#define minEncSpeed 1000 // Минимальная скорость вращения энкодера.
 
 // Пины управления ФНЧ передатчика
 #define dataPin 11 // DS 74hc595 controller pin
@@ -77,9 +77,7 @@ char ver[ ] = "160x12";
 
 const static uint8_t icons_8x8[][8] PROGMEM = {
   {0x00, 0x44, 0x44, 0x5f, 0x44, 0x44, 0x00, 0x00}, // 0 - +- symbol
-  //{0x00, 0x00, 0x06, 0x09, 0x09, 0x06, 0x00, 0x00}, // 1 - DEGrees symbol
-  //{0x00, 0x06, 0x0f, 0x09, 0x0f, 0x06, 0x00, 0x00},
-  {0x06, 0x0f, 0x09, 0x0f, 0x06, 0x00, 0x00, 0x00},
+  {0x06, 0x0f, 0x09, 0x0f, 0x06, 0x00, 0x00, 0x00}, // 1 - DEGrees symbol
 };
 
 //Общие настройки
