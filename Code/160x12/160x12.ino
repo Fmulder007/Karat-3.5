@@ -369,7 +369,7 @@ void pushknob () {  // Обработка нажатия на кноб
 
 void storetomem() { // Если крутили енкодер, то через 10 секунд все сохранить
 
-  if ((millis() - actenc > 10000UL) && actencf) {
+  if ((millis() - actenc > 10000UL) && actencf && !txen) {
     actenc = millis();
     actencf = false;
     memwrite ();
