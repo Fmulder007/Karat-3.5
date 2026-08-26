@@ -1,4 +1,4 @@
-char ver[ ] = "160x12";
+char ver[ ] = "160x13";
 /*
    Для Карат-3,5
     "GyverOLED.h" и меню на русском языке
@@ -280,7 +280,7 @@ void timenow () {
   }
 }
 
-void tempsensor () {
+/*void tempsensor () {
   if (millis() - previoustemp > 5000 && !reqtemp) {
     sensors.setWaitForConversion(false);
     sensors.requestTemperatures();
@@ -292,6 +292,31 @@ void tempsensor () {
     temperature = temperature + general_setting.temp_cal;
     previoustemp = millis();
     reqtemp = false;
+  }
+}*/
+
+void tempsensor()
+{
+  uint32_t now = millis();
+
+  // Запускаем новое измерение раз в секунду
+  if (!reqtemp && now - previoustemp >= 1000UL)
+  {
+    sensors.setWaitForConversion(false);
+    sensors.requestTemperatures();
+
+    reqtemp = true;
+    previoustemp = now;
+  }
+
+  // Получаем результат через 250 мс
+  if (reqtemp && now - previoustemp >= 250UL)
+  {
+    temperature = (int8_t)(0.5f + sensors.getTempCByIndex(0));
+    temperature += general_setting.temp_cal;
+
+    reqtemp = false;
+    previoustemp = now;
   }
 }
 
@@ -1140,7 +1165,7 @@ void versionprint() {
   else {
     display.println(ver);
     display.setScale(1);
-    display.println(" UD0DAB 2025 год.");
+    display.println(" UD0DAB 2026 год.");
     display.update();
   }
   delay(1000);
@@ -1161,9 +1186,6 @@ void cwsemitonegen() {
     cwsemitoneen = false;
   }
 }
-
-
-
 
 
 void cw() { // Процедура работы с ключом
