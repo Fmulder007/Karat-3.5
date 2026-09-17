@@ -1,4 +1,4 @@
-char ver[ ] = "160x13";
+#define ver F("160x14")
 /*
    Для Карат-3,5
     "GyverOLED.h" и меню на русском языке
@@ -187,6 +187,9 @@ tmElements_t tm;
 
 
 void setup() {
+
+  Wire.setClock(100000L);
+  
   //PTT control setup
   pinMode (pttpin, INPUT); // PTT pin input
   pinMode (txenpin, OUTPUT); // TX control pin output
@@ -219,9 +222,6 @@ void setup() {
   //========================
   digitalWrite(myEncBtn, HIGH);
   analogReference(INTERNAL);
-  display.init();
-  display.clear();
-  display.update();
   sensors.begin();
   memread();
   enc_div = general_setting.mem_enc_div;
@@ -233,6 +233,9 @@ void setup() {
   tempsensor ();
   timenow ();
   if (!digitalRead(myEncBtn)) menu = 100;
+  display.init();
+  display.clear();  
+  display.update();
   versionprint();
   mainscreen();
 
@@ -293,7 +296,7 @@ void timenow () {
     previoustemp = millis();
     reqtemp = false;
   }
-}*/
+  }*/
 
 void tempsensor()
 {
@@ -477,13 +480,13 @@ void readencoder() { // работа с енкодером
         case 20: //Настройка min_freq
           if (newPosition > oldPosition && band_setting.min_freq <= max_hardware_freq) band_setting.min_freq++;
           if (newPosition < oldPosition && band_setting.min_freq >= min_hardware_freq) band_setting.min_freq--;
-          band_setting.min_freq = constrain(band_setting.min_freq, min_hardware_freq, band_setting.max_freq - 1);
+          band_setting.min_freq = constrain(band_setting.min_freq, min_hardware_freq, band_setting.max_freq - 1UL);
           break;
 
         case 21: //Настройка maxfreq
           if (newPosition > oldPosition && band_setting.max_freq <= max_hardware_freq) band_setting.max_freq++;
           if (newPosition < oldPosition && band_setting.max_freq >= min_hardware_freq) band_setting.max_freq--;
-          band_setting.max_freq = constrain(band_setting.max_freq, band_setting.min_freq + 1, max_hardware_freq);
+          band_setting.max_freq = constrain(band_setting.max_freq, band_setting.min_freq + 1UL, max_hardware_freq);
           break;
 
         case 22: // Настройка количества каналов
@@ -662,42 +665,42 @@ void mainscreen() { //Процедура рисования главного э�
 
     case 0: //Если не в меню, то рисовать главный экран
       //Вывод частоты на дисплей
-      if ((band_setting.vfo_freq / 1000000) < 10) display.print(" ");
+      if ((band_setting.vfo_freq / 1000000) < 10) display.print(F(" "));
       display.print(band_setting.vfo_freq / 1000000);//Вывод МГц
       display.setCursorXY(41, 0); //Переводим курсор чуть правее текущего положения
-      if ((band_setting.vfo_freq % 1000000) / 1000 < 100) display.print("0");
-      if ((band_setting.vfo_freq % 1000000) / 1000 < 10) display.print("0");
+      if ((band_setting.vfo_freq % 1000000) / 1000 < 100) display.print(F("0"));
+      if ((band_setting.vfo_freq % 1000000) / 1000 < 10) display.print(F("0"));
       display.print((band_setting.vfo_freq % 1000000) / 1000); //Выводим КГц
       display.setScale(2); // Для сотен и десятков герц делаем шрифт поменьше
       display.setCursorXY(100, 7); //Переводим курсор чуть ниже текущего положения
-      if ((band_setting.vfo_freq % 1000) / 10 < 10) display.print("0"); //Если герц <10 то выводим "0" перед ними.
+      if ((band_setting.vfo_freq % 1000) / 10 < 10) display.print(F("0")); //Если герц <10 то выводим "0" перед ними.
       display.print((band_setting.vfo_freq % 1000) / 10);
 
       display.setScale(1);// Ставим маленький шрифт
       display.setCursorXY(0, 24); //Выводим вторую строку на дисплей
-      if (mybatt - 100 < 0) display.print(" ");
+      if (mybatt - 100 < 0) display.print(F(" "));
       display.print(mybatt / 10);
-      display.print(".");
+      display.print(F("."));
       display.print(mybatt % 10);
-      display.print(" ");
+      display.print(F(" "));
       //display.setTextSize(1);
-      //if (ptten) display.print("PTT");
-      //if (cwtxen) display.print("CWtxen");
+      //if (ptten) display.print(F("PTT"));
+      //if (cwtxen) display.print(F("CWtxen"));
 
       if (txen) {//Если передача, то вывод показометра мощности
         if (general_setting.PowerDoubler) {
-          display.print("В");
+          display.print(F("В"));
         }
         else {
-          display.print("Н");
+          display.print(F("Н"));
         }
         if ((fwdpower - revpower) > 0) {
           int swr1 = (long)(fwdpower + revpower) * 100 / (fwdpower - revpower);
-          if ((swr1 / 100) < 10)display.print(" ");
+          if ((swr1 / 100) < 10)display.print(F(" "));
           display.print(swr1 / 100);
-          display.print(".");
+          display.print(F("."));
           int swr23 = swr1 % 100;
-          if (swr23 < 10) display.print("0");
+          if (swr23 < 10) display.print(F("0"));
           display.print(swr23);
         }
         display.rect(x00, 23, x00 + (map(fwdpower, 1, 1023, 0, 128)), 26, OLED_FILL);
@@ -706,70 +709,70 @@ void mainscreen() { //Процедура рисования главного э�
       else {// Если прием, то рисовать температуру часы, полосу и диапазон
         //char ddot
         if (temperature >= -50 && temperature <= 50) {
-          if (temperature >= 0) display.print(" ");
+          if (temperature >= 0) display.print(F(" "));
           display.print(temperature);
           drawIcon8x8(1);
-          display.print("C");
+          display.print(F("C"));
         }
         else {
-          display.print(" err ");
+          display.print(F(" err "));
         }
         if (actencf) {
-          display.print(" ");
+          display.print(F(" "));
           display.setContrast(FullContrast);
         }
         else {
-          display.print(".");
+          display.print(F("."));
           display.setContrast(LowContrast);
         }
-        if (tm.Hour < 10) display.print(" ");
+        if (tm.Hour < 10) display.print(F(" "));
         display.print(tm.Hour);
         if (tm.Second % 2) {
-          display.print(":");
+          display.print(F(":"));
         }
         else {
-          display.print(" ");
+          display.print(F(" "));
         }
-        if (tm.Minute < 10) display.print("0");
+        if (tm.Minute < 10) display.print(F("0"));
         display.print(tm.Minute);
         if (band_setting.mode) {
-          display.print(" В");
+          display.print(F(" В"));
         }
         else {
-          display.print(" Н");
+          display.print(F(" Н"));
         }
-        if (general_setting.band < 10) display.print(" ");
+        if (general_setting.band < 10) display.print(F(" "));
         display.print(general_setting.band);
       }
       break;
 
     case 1: //Меню 1 - канал
-      if (general_setting.band < 10)display.print(" "); // Если номер канала меньше 10 добавить пробел
+      if (general_setting.band < 10)display.print(F(" ")); // Если номер канала меньше 10 добавить пробел
       display.print(general_setting.band); // выводим номер канала
       display.setScale(2); // Делаем меньше шрифт
       display.setCursorXY(41, 7);
-      if ((band_setting.vfo_freq / 1000000) < 10) display.print(" "); // Если частота меньше 10 МГц, в начале пробел
+      if ((band_setting.vfo_freq / 1000000) < 10) display.print(F(" ")); // Если частота меньше 10 МГц, в начале пробел
       display.print(band_setting.vfo_freq / 1000000); // Вывод МГц
       display.setCursorXY(68, 7);
-      if ((band_setting.vfo_freq % 1000000) / 1000 < 100) display.print("0");
-      if ((band_setting.vfo_freq % 1000000) / 1000 < 10) display.print("0");
+      if ((band_setting.vfo_freq % 1000000) / 1000 < 100) display.print(F("0"));
+      if ((band_setting.vfo_freq % 1000000) / 1000 < 10) display.print(F("0"));
       display.print((band_setting.vfo_freq % 1000000) / 1000); //Выводим КГц
       display.setScale(1); // Для сотен и десятков герц делаем шрифт поменьше
       display.setCursor(108, 0); //Переводим курсор чуть выше текущего положения
       if (band_setting.mode) {
-        display.print("ВБП");
+        display.print(F("ВБП"));
       }
       else
       {
-        display.print("НБП");
+        display.print(F("НБП"));
       }
       display.setCursorXY(108, 14);
-      if ((band_setting.vfo_freq % 1000) / 10 < 10) display.print("0"); //Если герц <10 то выводим "0" перед ними.
+      if ((band_setting.vfo_freq % 1000) / 10 < 10) display.print(F("0")); //Если герц <10 то выводим "0" перед ними.
       display.print((band_setting.vfo_freq % 1000) / 10);
       display.setCursorXY(0, 24); // Переносим курсор на место начала второй строки
       display.print(menu);
 
-      display.print(" Выб. КАНАЛ 0 <=> ");
+      display.print(F(" Выб. КАНАЛ 0 <=> "));
       display.print(general_setting.number_of_bands);
       break;
 
@@ -777,68 +780,68 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(arraystp[general_setting.stp] * 10UL);
       display.setScale(1);
       display.print(menu);
-      display.print(" Шаг Гц");
+      display.print(F(" Шаг Гц"));
       break;
 
     case 3: //Меню 3 - LSB|USB
       if (band_setting.mode) {
-        display.println("ВБП");
+        display.println(F("ВБП"));
       }
       else
       {
-        display.println("НБП");
+        display.println(F("НБП"));
       }
       display.setScale(1);
       display.print(menu);
-      display.println(" Выбор ВБП/НБП");
+      display.println(F(" Выбор ВБП/НБП"));
       break;
 
     case 4: //Настройка IF - Shift
       display.println(general_setting.if_shift);
       display.setScale(1);
       display.print(menu);
-      display.print(" Сдвиг ПЧ ");
+      display.print(F(" Сдвиг ПЧ "));
       drawIcon8x8(0);
-      display.println("Гц");
+      display.println(F("Гц"));
       break;
 
     case 5: // Hi-Lo power
       if (general_setting.PowerDoubler) {
-        display.println("Высокая");
+        display.println(F("Высокая"));
       }
       else
       {
-        display.println("Низкая");
+        display.println(F("Низкая"));
       }
       display.setScale(1);
       display.print(menu);
-      display.println(" Мощность УМ");
+      display.println(F(" Мощность УМ"));
       break;
 
     case 6: // ALC-RX
       if (general_setting.ALC_RX) {
-        display.println("Выкл");
+        display.println(F("Выкл"));
       }
       else
       {
-        display.println("Вкл");
+        display.println(F("Вкл"));
       }
       display.setScale(1);
       display.print(menu);
-      display.println(" АРУ ПРМ");
+      display.println(F(" АРУ ПРМ"));
       break;
 
     case 7: // ATT_RX
       if (general_setting.ATT_RX) {
-        display.println("On");
+        display.println(F("On"));
       }
       else
       {
-        display.println("Off");
+        display.println(F("Off"));
       }
       display.setScale(1);
       display.print(menu);
-      display.println(" ATT-RX On/Off");
+      display.println(F(" ATT-RX On/Off"));
       break;
 
     //-----------------------------USER MENU Display-------------------------//
@@ -846,56 +849,56 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(band_setting.min_freq * 100);
       display.setScale(1);
       display.print(menu);
-      display.print(" Мин. Частота ");
+      display.print(F(" Мин. Частота "));
       drawIcon8x8(0);
-      display.print("кГц");
+      display.print(F("кГц"));
       break;
 
     case 21: //Настройка maxfreq
       display.println(band_setting.max_freq * 100);
       display.setScale(1);
       display.print(menu);
-      display.print(" Макс. Частота ");
+      display.print(F(" Макс. Частота "));
       drawIcon8x8(0);
-      display.print("кГц");
+      display.print(F("кГц"));
       break;
 
     case 22: //Количество каналов
       display.println(general_setting.number_of_bands);
       display.setScale(1);
       display.print(menu);
-      display.print(" Всего каналов");
+      display.print(F(" Всего каналов"));
       break;
 
 
     case 23: //Меню 12 - Настройка Часов
-      if (tm.Hour < 10) display.print("0");
+      if (tm.Hour < 10) display.print(F("0"));
       display.println(tm.Hour);
       display.setScale(1);
       display.print(menu);
-      display.print(" Уст. Часов");
+      display.print(F(" Уст. Часов"));
       break;
 
     case 24: //Меню 13 - Настройка Минут
-      if (tm.Minute < 10) display.print("0");
+      if (tm.Minute < 10) display.print(F("0"));
       display.println(tm.Minute);
       display.setScale(1);
       display.print(menu);
-      display.print(" Уст. Минут");
+      display.print(F(" Уст. Минут"));
       break;
 
     case 25: //Меню 17 - CW-Delay
       display.println(general_setting.cwdelay * 10);
       display.setScale(1);
       display.print(menu);
-      display.print(" Задержка ТЛГ");
+      display.print(F(" Задержка ТЛГ"));
       break;
 
     case 26: //Меню 18 - CW-Tone
       display.println(general_setting.cwtone * 10);
       display.setScale(1);
       display.print(menu);
-      display.print(" Тон ТЛГ Гц");
+      display.print(F(" Тон ТЛГ Гц"));
       break;
 
 
@@ -903,35 +906,35 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(general_setting.mem_enc_div);
       display.setScale(1);
       display.print(menu);
-      display.print(" !Делитель энкодера!");
+      display.print(F(" !Делитель энкодера!"));
       break;
 
     case 28: //Меню 14 - Reverse Encoder
       if (general_setting.reverse_encoder) {
-        display.println("Да");
+        display.println(F("Да"));
       }
       else
       {
-        display.println("Нет");
+        display.println(F("Нет"));
       }
       display.setScale(1);
       display.print(menu);
-      display.println(" Реверс энкодера");
+      display.println(F(" Реверс энкодера"));
       break;
 
     //-------------------------------------SETUP MENU DISPLAY--------------------------------------//
 
     case 100: //Channel mode
       if (general_setting.cmode) {
-        display.println("Да");
+        display.println(F("Да"));
       }
       else
       {
-        display.println("Нет");
+        display.println(F("Нет"));
       }
       display.setScale(1);
       display.print(menu);
-      display.println(" Вкл кан. режим");
+      display.println(F(" Вкл кан. режим"));
       break;
 
 
@@ -939,22 +942,22 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(general_setting.batt_cal);
       display.setScale(1);
       display.print(menu);
-      display.print(" Батарея ");
-      if (mybatt - 100 < 0) display.print("0");
+      display.print(F(" Батарея "));
+      if (mybatt - 100 < 0) display.print(F("0"));
       display.print(mybatt / 10);
-      display.print(".");
+      display.print(F("."));
       display.print(mybatt % 10);
-      display.print(" В");
+      display.print(F(" В"));
       break;
 
     case 102: //Калибровка термодатчика
       display.println(general_setting.temp_cal);
       display.setScale(1);
       display.print(menu);
-      display.print(" Температура");
+      display.print(F(" Температура"));
       drawIcon8x8(1);
       drawIcon8x8(0);
-      display.print("C");
+      display.print(F("C"));
       break;
 
     case 103: //Настройка калибровки кварца
@@ -962,9 +965,9 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(general_setting.Si_Xtall_Freq);
       display.setScale(1);
       display.print(menu);
-      display.print(" Калибровка кварца");
+      display.print(F(" Калибровка кварца"));
       drawIcon8x8(0);
-      display.print("Гц");
+      display.print(F("Гц"));
       break;
 
 
@@ -973,9 +976,9 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(general_setting.lsb_lo_freq);
       display.setScale(1);
       display.print(menu);
-      display.print(" Опора НБП");
+      display.print(F(" Опора НБП"));
       drawIcon8x8(0);
-      display.print("Гц");
+      display.print(F("Гц"));
       break;
 
 
@@ -984,9 +987,9 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(general_setting.usb_lo_freq);
       display.setScale(1);
       display.print(menu);
-      display.print(" Опора ВБП");
+      display.print(F(" Опора ВБП"));
       drawIcon8x8(0);
-      display.print("Гц");
+      display.print(F("Гц"));
       break;
 
     case 106: //Настройка BFO
@@ -994,55 +997,55 @@ void mainscreen() { //Процедура рисования главного э�
       display.println(general_setting.bfo_freq);
       display.setScale(1);
       display.print(menu);
-      display.print(" Опора 2ПЧ ");
+      display.print(F(" Опора 2ПЧ "));
       drawIcon8x8(0);
-      display.print("Гц");
+      display.print(F("Гц"));
       break;
 
     case 107: //Настройка b1 bpf
       display.println(general_setting.b1 * 100);
       display.setScale(1);
       display.print(menu);
-      display.print(" Граница ДПФ1 ");
-      display.print("kHz");
+      display.print(F(" Граница ДПФ1 "));
+      display.print(F("kHz"));
       break;
 
     case 108: //Настройка b2 bpf
       display.println(general_setting.b2 * 100);
       display.setScale(1);
       display.print(menu);
-      display.print(" Граница ДПФ2 ");
-      display.print("kHz");
+      display.print(F(" Граница ДПФ2 "));
+      display.print(F("kHz"));
       break;
 
     case 109: //Настройка b3 bpf
       display.println(general_setting.b3 * 100);
       display.setScale(1);
       display.print(menu);
-      display.print(" Граница ДПФ3 ");
-      display.print("kHz");
+      display.print(F(" Граница ДПФ3 "));
+      display.print(F("kHz"));
       break;
 
     case 110: //Настройка b4 bpf
       display.println(general_setting.b4 * 100);
       display.setScale(1);
       display.print(menu);
-      display.print(" Граница ДПФ4 ");
-      display.print("kHz");
+      display.print(F(" Граница ДПФ4 "));
+      display.print(F("kHz"));
       break;
 
     case 111: //Backup Setting
       display.println(backup_index);
       display.setScale(1);
       display.print(menu);
-      display.print(" Резерв => 10");
+      display.print(F(" Резерв => 10"));
       break;
 
     case 112: //Restore setting
       display.println(restore_index);
       display.setScale(1);
       display.print(menu);
-      display.print(" Восстанов => 10");
+      display.print(F(" Восстанов => 10"));
       break;
   }
   display.update();
@@ -1158,14 +1161,14 @@ void versionprint() {
   //display.setTextColor(WHITE);
   display.setScale(3);
   if (menu == 100) {
-    display.println("Setup");
+    display.println(F("Setup"));
     display.update();
     while (!digitalRead(myEncBtn));
   }
   else {
     display.println(ver);
     display.setScale(1);
-    display.println(" UD0DAB 2026 год.");
+    display.println(F(" UD0DAB 2026 год."));
     display.update();
   }
   delay(1000);
@@ -1317,13 +1320,13 @@ void backup() {
   display.setCursor(0, 0);
   //display.setTextColor(WHITE);
   display.setScale(2);
-  display.print("Резерв..");
+  display.print(F("Резерв.."));
   display.update();
   int eeAddress = 0; //Устанавливаем адрес на 0
   EEPROM.put(eeAddress, general_setting); // Backup general_setting
   eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
   EEPROM.put(eeAddress, band_setting); // Backup band_setting
-  display.print("Ok");
+  display.print(F("Ok"));
   display.update();
   delay(1000);
   menu = 0;
@@ -1335,14 +1338,14 @@ void restore() {
   display.setCursor(0, 0);
   //display.setTextColor(WHITE);
   display.setScale(2);
-  display.print("Восстан..");
+  display.print(F("Восстан.."));
   display.update();
   int eeAddress = 0; //Устанавливаем адрес на 0
   EEPROM.get(eeAddress, general_setting); // Restore general_setting
   eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
   EEPROM.get(eeAddress, band_setting); // Restore band_setting
   memwrite ();
-  display.print(" Ok");
+  display.print(F(" Ok"));
   display.update();
   delay(1000);
   //menu=0;
