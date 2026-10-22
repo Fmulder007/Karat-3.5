@@ -1,8 +1,32 @@
+/*
+ * ============================================================
+ * ДОРАБОТКА ДЛЯ ПРОЕКТА KARAT-3.5
+ * Специализированная библиотека внешней EEPROM AT24C32
+ * Версия доработки: 2.0.0
+ * Дата: 2026-10-22
+ *
+ * Что изменено:
+ * 1. Оставлены только нужные скетчу функции: конструктор,
+ *    initialize(), readByte(), readEE() и writeEE() вместе с
+ *    внутренними обработчиками структур.
+ * 2. Удалены неиспользуемые функции пакетного чтения/записи:
+ *    readBytes(), writeBytes(), readBuffer(), writeBuffer(),
+ *    writePage() и связанные константы.
+ * 3. writeEE_mem() читает каждый существующий байт EEPROM и
+ *    записывает его только в случае отличия от новых данных.
+ * 4. Формат и адресация данных в EEPROM не изменены.
+ * 5. Обработка ошибок чтения I2C отдельно не добавлена по
+ *    согласованию с пользователем.
+ *
+ * Изменённые и добавленные участки отмечены комментариями.
+ * ============================================================
+ */
+
 /**************************************************************************//**
  * \brief EEPROM 24C32 / 24C64 library for Arduino
  * \author Copyright (C) 2012  Julien Le Sech - www.idreammicro.com
- * \version 1.0
- * \date 20120218
+ * \version 1.0 (базовая версия; проектная доработка Karat-3.5 — 2.0.0)
+ * \date 20120218 (базовая версия)
  *
  * This file is part of the EEPROM 24C32 / 24C64 library for Arduino.
  *
@@ -10,7 +34,7 @@
  * the terms of the GNU Lesser General Public License as published by the Free
  * Software Foundation, either version 3 of the License, or (at your option) any
  * later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
@@ -20,174 +44,40 @@
  * along with this program. If not, see http://www.gnu.org/licenses/
  ******************************************************************************/
 
-/**************************************************************************//**
- * \file Eeprom24C32_64.cpp
- ******************************************************************************/
-
-/******************************************************************************
- * Header file inclusions.
- ******************************************************************************/
-
 #include <Arduino.h>
 #include <Wire.h>
+#include "Eeprom24C32_64.h"
 
-#include <Eeprom24C32_64.h>
-
-/******************************************************************************
- * Private macro definitions.
- ******************************************************************************/
-
-/**************************************************************************//**
- * \def EEPROM__PAGE_SIZE
- * \brief Size of a page in EEPROM memory.
- * This size is given by EEPROM memory datasheet.
- ******************************************************************************/
-#define EEPROM__PAGE_SIZE         32
-
-/**************************************************************************//**
- * \def EEPROM__RD_BUFFER_SIZE
- * \brief Size of input TWI buffer.
- * This size is equal to BUFFER_LENGTH defined in Wire library (32 bytes).
- ******************************************************************************/
-#define EEPROM__RD_BUFFER_SIZE    BUFFER_LENGTH
-
-/**************************************************************************//**
- * \def EEPROM__WR_BUFFER_SIZE
- * \brief Size of output TWI buffer.
- * This size is equal to BUFFER_LENGTH - 2 bytes reserved for address.
- ******************************************************************************/
-#define EEPROM__WR_BUFFER_SIZE    (BUFFER_LENGTH - 2)
-
-/******************************************************************************
- * Public method definitions.
- ******************************************************************************/
-
-/**************************************************************************//**
- * \fn Eeprom24C32_64::Eeprom24C32_64(byte deviceAddress)
- *
- * \brief Constructor.
- *
- * \param   deviceAddress   EEPROM address on TWI bus.
- ******************************************************************************/
-Eeprom24C32_64::Eeprom24C32_64
-(
-    byte deviceAddress
-){
-    m_deviceAddress = deviceAddress;
+// >>> ДОРАБОТКА KARAT-3.5 v2.0.0: компактная реализация конструктора.
+Eeprom24C32_64::Eeprom24C32_64(byte deviceAddress)
+    : m_deviceAddress(deviceAddress)
+{
 }
+// <<< КОНЕЦ ДОРАБОТКИ KARAT-3.5 v2.0.0: конструктор.
 
-/**************************************************************************//**
- * \fn void Eeprom24C32_64::initialize()
- *
- * \brief Initialize library and TWI bus.
- *
- * If several devices are connected to TWI bus, this method mustn't be
- * called. TWI bus must be initialized out of this library using
- * Wire.begin() method.
- ******************************************************************************/
-void
-Eeprom24C32_64::initialize()
+// >>> СОХРАНЁННАЯ ФУНКЦИЯ ПО СОГЛАСОВАНИЮ: инициализация шины I2C.
+// В проекте Karat-3.5 шина также используется другими библиотеками.
+void Eeprom24C32_64::initialize()
 {
     Wire.begin();
 }
+// <<< КОНЕЦ ОТМЕЧЕННОГО УЧАСТКА initialize().
 
 /**************************************************************************//**
- * \fn void Eeprom24C32_64::writeByte(
- * word address,
- * byte data)
- *
- * \brief Write a byte in EEPROM memory.
- *
- * \remarks A delay of 10 ms is required after write cycle.
- *
- * \param   address Address.
- * \param   data    Byte to write.
+ * Чтение одного байта по адресу EEPROM.
+ * Используется непосредственно скетчем для расчёта контрольной суммы,
+ * а также внутренним механизмом сравнения перед выборочной записью.
  ******************************************************************************/
-void
-Eeprom24C32_64::writeByte
-(
-    word    address,
-    byte    data
-){
+// >>> КОМПАКТНАЯ РЕАЛИЗАЦИЯ KARAT-3.5 v2.0.0: чтение одного байта.
+byte Eeprom24C32_64::readByte(word address)
+{
     Wire.beginTransmission(m_deviceAddress);
-    Wire.write(address >> 8);
-    Wire.write(address & 0xFF);
-    Wire.write(data);
+    Wire.write((byte)(address >> 8));
+    Wire.write((byte)(address & 0xFF));
     Wire.endTransmission();
-    delay(10);
-}
 
-/**************************************************************************//**
- * \fn void Eeprom24C32_64::writeBytes(
- * word     address,
- * word     length,
- * byte*    p_data)
- * 
- * \brief Write bytes in EEPROM memory.
- *
- * \param       address Start address.
- * \param       length  Number of bytes to write.
- * \param[in]   p_data  Bytes to write.
- ******************************************************************************/
-void
-Eeprom24C32_64::writeBytes
-(
-    word    address,
-    word    length,
-    byte*   p_data
-){
-    // Write first page if not aligned.
-    byte notAlignedLength = 0;
-    byte pageOffset = address % EEPROM__PAGE_SIZE;
-    if (pageOffset > 0)
-    {
-        notAlignedLength = EEPROM__PAGE_SIZE - pageOffset;
-        writePage(address, notAlignedLength, p_data);
-        length -= notAlignedLength;
-    }
-
-    if (length > 0)
-    {
-        address += notAlignedLength;
-        p_data += notAlignedLength;
-
-        // Write complete and aligned pages.
-        byte pageCount = length / EEPROM__PAGE_SIZE;
-        for (byte i = 0; i < pageCount; i++)
-        {
-            writePage(address, EEPROM__PAGE_SIZE, p_data);
-            address += EEPROM__PAGE_SIZE;
-            p_data += EEPROM__PAGE_SIZE;
-            length -= EEPROM__PAGE_SIZE;
-        }
-
-        if (length > 0)
-        {
-            // Write remaining uncomplete page.
-            writePage(address, EEPROM__PAGE_SIZE, p_data);
-        }
-    }
-}
-
-/**************************************************************************//**
- * \fn byte Eeprom24C32_64::readByte(word address)
- * 
- * \brief Read a byte in EEPROM memory.
- *
- * \param   address Address.
- *
- * \return Read byte.
- ******************************************************************************/
-byte
-Eeprom24C32_64::readByte
-(
-    word address
-){
-    Wire.beginTransmission(m_deviceAddress);
-    Wire.write(address >> 8);
-    Wire.write(address & 0xFF);
-    Wire.endTransmission();
     Wire.requestFrom(m_deviceAddress, (byte)1);
+
     byte data = 0;
     if (Wire.available())
     {
@@ -195,156 +85,53 @@ Eeprom24C32_64::readByte
     }
     return data;
 }
+// <<< КОНЕЦ ОТМЕЧЕННОГО УЧАСТКА readByte().
 
-/**************************************************************************//**
- * \fn void Eeprom24C32_64::readBytes(
- * word     address,
- * word     length,
- * byte*    p_data)
- *
- * \brief Read bytes in EEPROM memory.
- *
- * \param       address Start address.
- * \param       length  Number of bytes to read.
- * \patam[in]   p_data  Byte array to fill with read bytes.
- ******************************************************************************/
-void
-Eeprom24C32_64::readBytes
-(
-    word    address,
-    word    length,
-    byte*   p_data
-){
-    byte bufferCount = length / EEPROM__RD_BUFFER_SIZE;
-    for (byte i = 0; i < bufferCount; i++)
-    {
-        word offset = i * EEPROM__RD_BUFFER_SIZE;
-        readBuffer(address + offset, EEPROM__RD_BUFFER_SIZE, p_data + offset);
-    }
-
-    byte remainingBytes = length % EEPROM__RD_BUFFER_SIZE;
-    word offset = length - remainingBytes;
-    readBuffer(address + offset, remainingBytes, p_data + offset);
-}
-//##############################################################
-void
-Eeprom24C32_64::readEE_mem(word address,void* pData, int size)
+// >>> КОМПАКТНАЯ РЕАЛИЗАЦИЯ KARAT-3.5 v2.0.0: чтение блока через readByte().
+void Eeprom24C32_64::readEE_mem(word address, void *pData, int size)
 {
-	uint8_t *pData2 = (uint8_t*)pData;
-  	for (; size>0; size--) {
-	   *pData2++ = readByte(address++);
-  }
-    
-}
-//##############################################################
-void
-Eeprom24C32_64::writeEE_mem(word address,const void* pData,int size)
-{
-	uint8_t *pData2 = (uint8_t*)pData;
-  	for (; size>0; size--) {
-	   writeByte(address++,*pData2++);
-   }
-    
-}
-//##############################################################
-/******************************************************************************
- * Private method definitions.
- ******************************************************************************/
-
-/**************************************************************************//**
- * \fn void Eeprom24C32_64::writePage(
- * word     address,
- * byte     length,
- * byte*    p_data)
- *
- * \brief Write page in EEPROM memory.
- *
- * \param       address Start address.
- * \param       length  Number of bytes (EEPROM__PAGE_SIZE bytes max).
- * \param[in]   p_data  Data.
- ******************************************************************************/
-void
-Eeprom24C32_64::writePage
-(
-    word    address,
-    byte    length,
-    byte*   p_data
-){
-    // Write complete buffers.
-    byte bufferCount = length / EEPROM__WR_BUFFER_SIZE;
-    for (byte i = 0; i < bufferCount; i++)
+    byte *p = (byte *)pData;
+    for (int i = 0; i < size; ++i)
     {
-        byte offset = i * EEPROM__WR_BUFFER_SIZE;
-        writeBuffer(address + offset, EEPROM__WR_BUFFER_SIZE, p_data + offset);
+        *p++ = readByte(address++);
     }
-
-    // Write remaining bytes.
-    byte remainingBytes = length % EEPROM__WR_BUFFER_SIZE;
-    byte offset = length - remainingBytes;
-    writeBuffer(address + offset, remainingBytes, p_data + offset);
 }
+// <<< КОНЕЦ ОТМЕЧЕННОГО УЧАСТКА readEE_mem().
 
-/**************************************************************************//**
- * \fn void Eeprom24C32_64::writeBuffer(
- * word     address,
- * byte     length,
- * byte*    p_data)
- *
- * \brief Write bytes into memory.
- *
- * \param       address Start address.
- * \param       length  Number of bytes (EEPROM__WR_BUFFER_SIZE bytes max).
- * \param[in]   p_data  Data.
- ******************************************************************************/
-void
-Eeprom24C32_64::writeBuffer
-(
-    word    address,
-    byte    length,
-    byte*   p_data
-){
+// >>> НАЧАЛО ДОРАБОТКИ KARAT-3.5 v2.0.0: выборочная запись структур и переменных.
+// Каждый входной байт обрабатывается ровно один раз: чтение старого значения,
+// сравнение и запись только при отличии. Адрес и указатель продвигаются
+// на каждом шаге, включая случай совпадающих байтов, поэтому данные не пропускаются.
+void Eeprom24C32_64::writeEE_mem(word address, const void *pData, int size)
+{
+    const byte *p = (const byte *)pData;
+
+    for (int i = 0; i < size; ++i)
+    {
+        const byte newData = *p++;
+        const byte oldData = readByte(address);
+
+        if (oldData != newData)
+        {
+            writeByteRaw(address, newData);
+        }
+
+        ++address;
+    }
+}
+// <<< КОНЕЦ ДОРАБОТКИ KARAT-3.5 v2.0.0: выборочная запись.
+
+// >>> НАЧАЛО ДОРАБОТКИ KARAT-3.5 v2.0.0: физическая запись одного изменённого байта.
+// Это внутренний метод. До вызова он уже сравнен с текущим содержимым EEPROM.
+void Eeprom24C32_64::writeByteRaw(word address, byte data)
+{
     Wire.beginTransmission(m_deviceAddress);
-    Wire.write(address >> 8);
-    Wire.write(address & 0xFF);
-    for (byte i = 0; i < length; i++)
-    {
-        Wire.write(p_data[i]);
-    }
+    Wire.write((byte)(address >> 8));
+    Wire.write((byte)(address & 0xFF));
+    Wire.write(data);
     Wire.endTransmission();
-    
-    // Write cycle time (tWR). See EEPROM memory datasheet for more details.
+
+    // Время внутреннего цикла записи EEPROM (tWR), как в оригинальной библиотеке.
     delay(10);
 }
-
-/**************************************************************************//**
- * \fn void Eeprom24C32_64::readBuffer(
- * word     address,
- * byte     length,
- * byte*    p_data)
- *
- * \brief Read bytes in memory.
- *
- * \param       address Start address.
- * \param       length  Number of bytes (EEPROM__RD_BUFFER_SIZE bytes max).
- * \param[in]   p_data  Buffer to fill with read bytes.
- ******************************************************************************/
-void
-Eeprom24C32_64::readBuffer
-(
-    word    address,
-    byte    length,
-    byte*   p_data
-){
-    Wire.beginTransmission(m_deviceAddress);
-    Wire.write(address >> 8);
-    Wire.write(address & 0xFF);
-    Wire.endTransmission();
-    Wire.requestFrom(m_deviceAddress, length);
-    for (byte i = 0; i < length; i++)
-    {
-        if (Wire.available())
-        {
-            p_data[i] = Wire.read();
-        }
-    }
-}
+// <<< КОНЕЦ ДОРАБОТКИ KARAT-3.5 v2.0.0: физическая запись.

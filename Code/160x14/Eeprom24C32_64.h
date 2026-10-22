@@ -1,8 +1,29 @@
+/*
+ * ============================================================
+ * ДОРАБОТКА ДЛЯ ПРОЕКТА KARAT-3.5
+ * Специализированная библиотека внешней EEPROM AT24C32
+ * Версия доработки: 2.0.0
+ * Дата: 2026-10-22
+ *
+ * Назначение версии 2.0.0:
+ * 1. Оставлены только операции, используемые скетчем 160x14.ino:
+ *    initialize(), readByte(), readEE() и writeEE().
+ * 2. Удалены неиспользуемые пути пакетного чтения и записи.
+ * 3. writeEE() выполняет выборочную запись: каждый байт сначала
+ *    читается и сравнивается; совпадающие байты не перезаписываются.
+ * 4. Сохранены адресация EEPROM и формат сохранённых данных.
+ * 5. Ошибки чтения I2C отдельно не обрабатываются по согласованию.
+ *
+ * Основа: Eeprom24C32_64, Julien Le Sech, 2012.
+ * Изменения для Karat-3.5 отмечены комментариями в коде.
+ * ============================================================
+ */
+
 /**************************************************************************//**
  * \brief EEPROM 24C32 / 24C64 library for Arduino
  * \author Copyright (C) 2012  Julien Le Sech - www.idreammicro.com
- * \version 1.0
- * \date 20120203
+ * \version 1.0 (базовая версия; проектная доработка Karat-3.5 — 2.0.0)
+ * \date 20120203 (базовая версия)
  *
  * This file is part of the EEPROM 24C32 / 24C64 library for Arduino.
  *
@@ -10,7 +31,7 @@
  * the terms of the GNU Lesser General Public License as published by the Free
  * Software Foundation, either version 3 of the License, or (at your option) any
  * later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
@@ -20,222 +41,50 @@
  * along with this program. If not, see http://www.gnu.org/licenses/
  ******************************************************************************/
 
-/**************************************************************************//**
- * \headerfile Eeprom24C32_64.h
- ******************************************************************************/
-
 #ifndef Eeprom24C32_64_h
 #define Eeprom24C32_64_h
 
-/******************************************************************************
- * Header file inclusion.
- ******************************************************************************/
-
 #include <Arduino.h>
 
-/**************************************************************************//**
- * \class Eeprom24C32_64
- *
- * \brief EEPROM 24C32 / 24C64 memory driver.
- *
- * This driver is designed for 24C32 and 24C64 EEPROM memories.
- ******************************************************************************/
+// >>> ДОРАБОТКА KARAT-3.5 v2.0.0: минимальный API, необходимый скетчу 160x14.ino.
 class Eeprom24C32_64
 {
-    public:
-    
-        /******************************************************************//**
-         * \fn Eeprom24C32_64(byte deviceAddress)
-         *
-         * \brief Constructor.
-         *
-         * \param   deviceAddress   EEPROM address on TWI bus.
-         **********************************************************************/
-        Eeprom24C32_64
-        (
-            byte deviceAddress
-        );
+public:
+    // Совместимость с существующим объявлением: Eeprom24C32_64 AT24C32(0x50).
+    Eeprom24C32_64(byte deviceAddress);
 
-        /******************************************************************//**
-         * \fn void initialize()
-         *
-         * \brief Initialize library abnd TWI bus.
-         * 
-         * If several devices are connected to TWI bus, this method mustn't be
-         * called. TWI bus must be initialized out of this library using
-         * Wire.begin() method.
-         **********************************************************************/        
-        void
-        initialize();
+    // Оставлено по просьбе пользователя: запускает шину Wire (Wire.begin()).
+    // В текущем скетче напрямую не вызывается.
+    void initialize();
 
-        /******************************************************************//**
-         * \fn void writeByte(
-         * word address,
-         * byte data)
-         *
-         * \brief Write a byte in EEPROM memory.
-         *
-         * \remarks A delay of 10 ms is required after write cycle.
-         *
-         * \param   address Address.
-         * \param   data    Byte to write.
-         **********************************************************************/
-        void
-        writeByte
-        (
-            word    address,
-            byte    data
-        );
-        
-        /******************************************************************//**
-         * \fn void writeBytes(
-         * word     address,
-         * word     length,
-         * byte*    p_data)
-         * 
-         * \brief Write bytes in EEPROM memory.
-         *
-         * \param       address Start address.
-         * \param       length  Number of bytes to write.
-         * \param[in]   p_data  Bytes to write.
-         **********************************************************************/
-        void
-        writeBytes
-        (
-            word    address,
-            word    length,
-            byte*   p_data
-        );
-        
-        /******************************************************************//**
-         * \fn byte readByte(word address)
-         * 
-         * \brief Read a byte in EEPROM memory.
-         *
-         * \param   address Address.
-         *
-         * \return Read byte.
-         **********************************************************************/
-        byte
-        readByte
-        (
-            word    address
-        );
+    // Используется скетчем для побайтной проверки контрольной суммы.
+    byte readByte(word address);
 
-        /******************************************************************//**
-         * \fn void readBytes(
-         * word     address,
-         * word     length,
-         * byte*    p_data)
-         *
-         * \brief Read bytes in EEPROM memory.
-         *
-         * \param       address Start address.
-         * \param       length  Number of bytes to read.
-         * \patam[in]   p_data  Byte array to fill with read bytes.
-         **********************************************************************/
-        void
-        readBytes
-        (
-            word    address,
-            word    length,
-            byte*   p_buffer
-        );
-        //*********************************************************
-	//#########################################################
-	void
-        readEE_mem
-        (
-            word    address,
-            void* pData, 
-	    int size
-        );
-	//#########################################################
-	void
-        writeEE_mem
-        (
-            word    address,
-            const void* pData, 
-	    int size
-        );
-	//#########################################################
-	//шаблоны для других типов данных
-	template< typename T > void readEE(word addres, T &data)   //reads data
-	{
-  	readEE_mem(addres, &data, sizeof(data));
-	}
+    // Чтение переменной или структуры с указанного адреса EEPROM.
+    template<typename T>
+    void readEE(word address, T &data)
+    {
+        readEE_mem(address, &data, sizeof(data));
+    }
 
-	template< typename T > void writeEE(word addres, const T &data) //writes data
-	{
-  	writeEE_mem(addres, &data, sizeof(data));
-	}
+    // Запись переменной или структуры; неизменённые байты пропускаются.
+    template<typename T>
+    void writeEE(word address, const T &data)
+    {
+        writeEE_mem(address, &data, sizeof(data));
+    }
 
-	//#########################################################
-	//*********************************************************
-    private:
+private:
+    byte m_deviceAddress;
 
-        byte m_deviceAddress;
+    void readEE_mem(word address, void *pData, int size);
+    void writeEE_mem(word address, const void *pData, int size);
 
-        /******************************************************************//**
-         * \fn void writePage(
-         * word     address,
-         * byte     length,
-         * byte*    p_data)
-         *
-         * \brief Write page in EEPROM memory.
-         *
-         * \param       address Start address.
-         * \param       length  Number of bytes (64 bytes max).
-         * \param[in]   p_data  Data.
-         **********************************************************************/
-        void
-        writePage
-        (
-            word    address,
-            byte    length,
-            byte*   p_data
-        );
-
-        /******************************************************************//**
-         * \fn void writeBuffer(
-         * word     address,
-         * byte     length,
-         * byte*    p_data)
-         *
-         * \brief Write bytes into memory.
-         *
-         * \param       address Start address.
-         * \param       length  Number of bytes (30 bytes max).
-         * \param[in]   p_date  Data.
-         **********************************************************************/
-        void
-        writeBuffer
-        (
-            word    address,
-            byte    length,
-            byte*   p_data
-       );
-
-        /******************************************************************//**
-         * \fn void readBuffer(
-         * word     address,
-         * byte     length,
-         * byte*    p_data)
-         *
-         * \brief Read bytes in memory.
-         *
-         * \param       address Start address.
-         * \param       length  Number of bytes to read (32 bytes max).
-         * \param[in]   p_data  Buffer to fill with read bytes.
-         **********************************************************************/
-        void
-        readBuffer
-        (
-            word    address,
-            byte    length,
-            byte*   p_data
-        );
+    // >>> ДОРАБОТКА KARAT-3.5 v2.0.0: низкоуровневая безусловная запись одного байта.
+    // Вызывается только после того, как writeEE_mem обнаружила отличие.
+    void writeByteRaw(word address, byte data);
+    // <<< КОНЕЦ ДОРАБОТКИ KARAT-3.5 v2.0.0.
 };
+// <<< КОНЕЦ ДОРАБОТКИ KARAT-3.5 v2.0.0: минимальный API.
 
 #endif // Eeprom24C32_64_h
-
