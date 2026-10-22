@@ -18,7 +18,7 @@
 //#define SI_OVERCLOCK 750000000L
 #define ENCODER_OPTIMIZE_INTERRUPTS
 
-#define crcmod 1// поправка расчета CRC для НЕ СОВМЕСТИМОСТИ со старыми прошивками
+#define crcmod 3// поправка расчета CRC для НЕ СОВМЕСТИМОСТИ со старыми прошивками
 
 //#define SCREEN_WIDTH 128 // OLED display width, in pixels
 //#define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -113,8 +113,8 @@ struct general_set {
 struct band_set {
   bool mode = 0; // LSB=0, USB=1.
   uint32_t vfo_freq = 7100000UL; // Начальная частота VFO при первом включении.
-  uint8_t min_freq = 15; // *100KHz Минимальный предел частоты диапазона VFO.
-  uint32_t max_freq = 300; // *100KHz Максимальный предел частоты диапазона VFO.
+  uint32_t min_freq = 15UL; // *100KHz Минимальный предел частоты диапазона VFO.
+  uint32_t max_freq = 300UL; // *100KHz Максимальный предел частоты диапазона VFO.
 } band_setting;
 
 
