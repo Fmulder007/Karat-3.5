@@ -708,14 +708,38 @@ void mainscreen() { //Процедура рисования главного э�
         else {
           display.print(F("Н"));
         }
-        if ((fwdpower - revpower) > 0) {
-          int swr1 = (long)(fwdpower + revpower) * 100 / (fwdpower - revpower);
-          if ((swr1 / 100) < 10)display.print(F(" "));
-          display.print(swr1 / 100);
-          display.print(F("."));
-          int swr23 = swr1 % 100;
-          if (swr23 < 10) display.print(F("0"));
-          display.print(swr23);
+        // Если оба детектора показывают ноль, числовое значение КСВ не выводим.
+        if (fwdpower || revpower) {
+          // Сначала сравниваем значения: беззнаковое вычитание при REV > FWD переполняется.
+          if (fwdpower <= revpower) {
+            display.print(F("---"));
+          }
+          else {
+            // Считаем КСВ в сотых долях, используя 32 бита для суммы и произведения.
+            uint32_t swr100 = (((uint32_t)fwdpower + (uint32_t)revpower) * 100UL) /
+                              ((uint32_t)fwdpower - (uint32_t)revpower);
+
+            if (swr100 <= 999UL) {
+              // До 9.99 сохраняем прежнюю точность — две цифры после точки.
+              if ((swr100 / 100UL) < 10UL) display.print(F(" "));
+              display.print(swr100 / 100UL);
+              display.print(F("."));
+              uint8_t swrFraction = (uint8_t)(swr100 % 100UL);
+              if (swrFraction < 10) display.print(F("0"));
+              display.print(swrFraction);
+            }
+            else {
+              // Выше 9.99 округляем до десятых: прибавляем 5 сотых перед делением на 10.
+              uint32_t swr10 = (swr100 + 5UL) / 10UL;
+
+              // Не даём отображаемому значению превысить 99.9.
+              if (swr10 > 999UL) swr10 = 999UL;
+
+              display.print(swr10 / 10UL);
+              display.print(F("."));
+              display.print(swr10 % 10UL);
+            }
+          }
         }
         display.rect(x00, 23, x00 + (map(fwdpower, 1, 1023, 0, 128)), 26, OLED_FILL);
         display.rect(x00, 28, x00 + (map(revpower, 1, 1023, 0, 128)), 31, OLED_FILL);
