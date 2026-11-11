@@ -210,6 +210,13 @@ static_assert(BACKUP_TOTAL_SIZE <= 1024U, "Backup slots do not fit internal EEPR
 static_assert((E2END + 1UL) >= BACKUP_TOTAL_SIZE, "Internal EEPROM is too small for two backup slots");
 #endif
 
+static_assert(BACKUP_RING_DATA_OFFSET + BAND_RING_COUNT * BAND_RECORD_SIZE == BACKUP_META_OFFSET,
+              "Backup ring map does not fit the backup slot");
+static_assert(BACKUP_COMMIT_OFFSET + 1U == BACKUP_CRC_OFFSET,
+              "Backup commit marker and CRC offsets overlap");
+static_assert(BACKUP_CRC_OFFSET + 2U == BACKUP_SLOT_SIZE,
+              "Backup slot size does not match its CRC position");
+
 // Слоты выбираются вызывающим кодом. Без аргумента используется слот 1.
 void backup(uint8_t slot = 1);
 void restore(uint8_t slot = 1);
