@@ -117,6 +117,9 @@ struct band_set {
   uint32_t max_freq = 300UL; // *100KHz Максимальный предел частоты диапазона VFO.
 } band_setting;
 
+// Текущий рабочий диапазон. Поле general_setting.band оставлено в структуре для старого формата.
+uint8_t band = 0;
+
 
 //
 //
@@ -176,6 +179,14 @@ byte bpf_set = 0;
 byte backup_index = 0;
 byte restore_index = 0;
 
+#define MEM_READ  0
+#define MEM_WRITE 1
+#define BAND_RING_COUNT (max_number_of_bands + 1)
+#define BAND_RING_SIZE 128
+#define BAND_RECORD_SIZE 15
+#define BAND_LOG_RING_SIZE 88
+#define BAND_LOG_RECORD_SIZE 3
+
 static Eeprom24C32_64 AT24C32(0x50);
 Si5351 si;
 Encoder myEnc(2, 3); //порты подключения енкодера.
@@ -223,7 +234,7 @@ void setup() {
   digitalWrite(myEncBtn, HIGH);
   analogReference(INTERNAL);
   sensors.begin();
-  memread();
+  memory(MEM_READ);
   enc_div = general_setting.mem_enc_div;
   si5351init();
   si5351correction();
@@ -398,9 +409,10 @@ void pushknob () {  // Обработка нажатия на кноб
 void storetomem() { // Если крутили енкодер, то через 10 секунд все сохранить
 
   if ((millis() - actenc > 10000UL) && actencf && !txen) {
-    actenc = millis();
-    actencf = false;
-    memwrite ();
+    if (memory(MEM_WRITE)) {
+      actenc = millis();
+      actencf = false;
+    }
   }
 }
 
@@ -437,10 +449,10 @@ void readencoder() { // работа с енкодером
           break;
 
         case 1: //Переключение каналов
-          if (newPosition > oldPosition && general_setting.band < general_setting.number_of_bands) general_setting.band++;
-          if (newPosition < oldPosition && general_setting.band > 0) general_setting.band--;
-          general_setting.band = constrain(general_setting.band, 0, general_setting.number_of_bands);
-          band_memread();
+          if (newPosition > oldPosition && band < general_setting.number_of_bands) band++;
+          if (newPosition < oldPosition && band > 0) band--;
+          band = constrain(band, 0, general_setting.number_of_bands);
+          memory(MEM_READ);
           vfosetup();
           break;
 
@@ -493,7 +505,7 @@ void readencoder() { // работа с енкодером
           if (newPosition > oldPosition && general_setting.number_of_bands < max_number_of_bands) general_setting.number_of_bands++;
           if (newPosition < oldPosition && general_setting.number_of_bands > 0) general_setting.number_of_bands--;
           if (general_setting.number_of_bands > max_number_of_bands) general_setting.number_of_bands = max_number_of_bands;
-          if (general_setting.band > general_setting.number_of_bands) general_setting.band = general_setting.number_of_bands;
+          if (band > general_setting.number_of_bands) band = general_setting.number_of_bands;
           break;
 
         case 23: //Настройка Часов
@@ -741,14 +753,14 @@ void mainscreen() { //Процедура рисования главного э�
         else {
           display.print(F(" Н"));
         }
-        if (general_setting.band < 10) display.print(F(" "));
-        display.print(general_setting.band);
+        if (band < 10) display.print(F(" "));
+        display.print(band);
       }
       break;
 
     case 1: //Меню 1 - канал
-      if (general_setting.band < 10)display.print(F(" ")); // Если номер канала меньше 10 добавить пробел
-      display.print(general_setting.band); // выводим номер канала
+      if (band < 10)display.print(F(" ")); // Если номер канала меньше 10 добавить пробел
+      display.print(band); // выводим номер канала
       display.setScale(2); // Делаем меньше шрифт
       display.setCursorXY(41, 7);
       if ((band_setting.vfo_freq / 1000000) < 10) display.print(F(" ")); // Если частота меньше 10 МГц, в начале пробел
@@ -1088,72 +1100,299 @@ void si5351correction() {
   //si.update_freq(2);
 }
 
-void memwrite () {
-  //Запись general_setting
-  int16_t crc = 0;
-  uint8_t i = 0;
-  uint8_t * adr;
-  adr =  (uint8_t*)(& general_setting);
-  while (i < (sizeof(general_setting)))
-  {
-    crc += *(adr + i);
-    i++;
+
+/*
+ * Кольцевая память AT24C32.
+ * Общие настройки (0..39) сохраняют прежний формат и прежнюю CRC.
+ * Диапазоны 0..30: 31 кольцо по 128 байт, запись 15 байт.
+ * Выбор диапазона: отдельное кольцо 88 байт, запись 3 байта.
+ * Внешний интерфейс: memory(MEM_READ) и memory(MEM_WRITE).
+ */
+
+static uint8_t memoryGeneralBand = 0;
+static bool memoryInitialized = false;
+
+static bool memoryBandCacheValid = false;
+static bool memoryBandHasRecord = false;
+static uint8_t memoryCachedBand = 0;
+static uint8_t memoryBandLastPos = 0;
+static uint8_t memoryBandLastSeq = 0;
+
+static bool memorySelectionHasRecord = false;
+static uint8_t memorySelectionLastPos = 0;
+static uint8_t memorySelectionLastSeq = 0;
+
+static uint16_t memoryBandBase(uint8_t index) {
+  return (uint16_t)(sizeof(general_set) + 2U + (uint16_t)index * BAND_RING_SIZE);
+}
+
+static uint16_t memorySelectionBase() {
+  return (uint16_t)(sizeof(general_set) + 2U +
+                    (uint16_t)BAND_RING_COUNT * BAND_RING_SIZE);
+}
+
+static uint8_t memoryRingReadByte(uint16_t base, uint8_t ringSize, uint8_t position) {
+  return AT24C32.readByte((word)(base + (position % ringSize)));
+}
+
+static void memoryRingWriteByte(uint16_t base, uint8_t ringSize,
+                                uint8_t position, uint8_t value) {
+  AT24C32.writeEE((word)(base + (position % ringSize)), value);
+}
+
+// CRC-8: полином 0x07, init=0, без отражения, xorout=0.
+static uint8_t memoryCrc8(const uint8_t *data, uint8_t length) {
+  uint8_t crc = 0;
+  while (length--) {
+    crc ^= *data++;
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      if (crc & 0x80) crc = (uint8_t)((crc << 1) ^ 0x07);
+      else crc <<= 1;
+    }
   }
+  return crc;
+}
+
+static bool memorySequenceNewer4(uint8_t candidate, uint8_t current) {
+  uint8_t difference = (uint8_t)((candidate - current) & 0x0F);
+  return difference != 0 && difference < 8;
+}
+
+static bool memorySequenceNewer8(uint8_t candidate, uint8_t current) {
+  uint8_t difference = (uint8_t)(candidate - current);
+  return difference != 0 && difference < 128;
+}
+
+// Старое поле general_setting.band остаётся неизменным в основной области EEPROM.
+static void memorySaveGeneralSettings() {
+  uint8_t bandField = general_setting.band;
+  general_setting.band = memoryGeneralBand;
+
+  int16_t crc = 0;
+  const uint8_t *address = (const uint8_t *)&general_setting;
+  for (uint8_t i = 0; i < sizeof(general_setting); i++) crc += address[i];
+
   AT24C32.writeEE(2, general_setting);
-  AT24C32.writeEE(0, (crc + crcmod));
+  AT24C32.writeEE(0, (int16_t)(crc + crcmod));
 
-  // Запись band_setting
-  crc = 0;
-  i = 0;
-  adr =  (uint8_t*)(& band_setting);
-  while (i < (sizeof(band_setting)))
-  {
-    crc += *(adr + i);
-    i++;
-  }
-  AT24C32.writeEE(sizeof(general_setting) + 2 + ((sizeof(band_setting) + 2)*general_setting.band) + 2, band_setting);
-  AT24C32.writeEE(sizeof(general_setting) + 2 + ((sizeof(band_setting) + 2)*general_setting.band), (crc + crcmod));
+  general_setting.band = bandField;
 }
 
-void memread() {
-  int16_t crc = 0;
-  int16_t crcrom = 0;
-  uint8_t i = 0;
+static void memoryLoadGeneralSettings() {
+  int16_t storedCrc = 0;
+  int16_t calculatedCrc = 0;
 
-  // Чтение general_setting
-  AT24C32.readEE (0, crc);
-  while (i < (sizeof(general_setting)))
-  {
-    crcrom += AT24C32.readByte ((i + 2));
-    i++;
+  AT24C32.readEE(0, storedCrc);
+  for (uint8_t i = 0; i < sizeof(general_setting); i++) {
+    calculatedCrc += AT24C32.readByte((word)(i + 2U));
   }
-  if (crc == (crcrom + crcmod)) {
-    AT24C32.readEE (2, general_setting);
+
+  if (storedCrc == (int16_t)(calculatedCrc + crcmod)) {
+    AT24C32.readEE(2, general_setting);
   }
-  else {
-    memwrite ();
-  }
-  band_memread();
+
+  // При пустой или повреждённой EEPROM остаются начальные значения структуры.
+  memoryGeneralBand = general_setting.band;
+  if (storedCrc != (int16_t)(calculatedCrc + crcmod)) memorySaveGeneralSettings();
 }
 
-void band_memread() {
+// Один проход по всем возможным начальным адресам кольца текущего диапазона.
+static bool memoryFindBandRecord(uint8_t targetBand, bool loadSettings) {
+  const uint16_t base = memoryBandBase(targetBand);
+  uint8_t record[BAND_RECORD_SIZE];
+  bool found = false;
+  uint8_t bestSequence = 0;
+  uint8_t bestPosition = 0;
 
-  int16_t crc = 0;
-  int16_t crcrom = 0;
-  uint8_t i = 0;
-  AT24C32.readEE (sizeof(general_setting) + 2 + ((sizeof(band_setting) + 2) * general_setting.band), crc);
-  while (i < (sizeof(band_setting)))
-  {
-    crcrom += AT24C32.readByte ((i + sizeof(general_setting) + 2 + ((sizeof(band_setting) + 2) * general_setting.band)) + 2);
-    i++;
+  for (uint8_t position = 0; position < BAND_RING_SIZE; position++) {
+    record[0] = memoryRingReadByte(base, BAND_RING_SIZE, position);
+    if ((record[0] & 0xF0) != 0xA0) continue;
+
+    for (uint8_t i = 1; i < BAND_RECORD_SIZE; i++) {
+      record[i] = memoryRingReadByte(base, BAND_RING_SIZE,
+                                     (uint8_t)((position + i) % BAND_RING_SIZE));
+    }
+
+    if (memoryCrc8(record, BAND_RECORD_SIZE - 1) != record[BAND_RECORD_SIZE - 1]) continue;
+
+    uint8_t sequence = (uint8_t)(record[0] & 0x0F);
+    if (!found || memorySequenceNewer4(sequence, bestSequence)) {
+      found = true;
+      bestSequence = sequence;
+      bestPosition = position;
+
+      // В рабочую структуру переносим только запись с верной CRC.
+      if (loadSettings) {
+        uint8_t *destination = (uint8_t *)&band_setting;
+        for (uint8_t i = 0; i < sizeof(band_setting); i++) {
+          destination[i] = record[i + 1];
+        }
+      }
+    }
   }
-  if (crc == (crcrom + crcmod)) {
-    AT24C32.readEE (sizeof(general_setting) + 2 + ((sizeof(band_setting) + 2)*general_setting.band) + 2, band_setting);
-  }
-  else {
-    memwrite ();
-  }
+
+  memoryBandCacheValid = true;
+  memoryCachedBand = targetBand;
+  memoryBandHasRecord = found;
+  memoryBandLastPos = bestPosition;
+  memoryBandLastSeq = bestSequence;
+  return found;
 }
+
+// Сначала пишутся 14 информационных байтов, CRC — последней.
+// Затем запись перечитывается для проверки результата.
+static bool memoryStoreBandRecord(uint8_t targetBand,
+                                  uint8_t position,
+                                  uint8_t sequence) {
+  const uint16_t base = memoryBandBase(targetBand);
+  uint8_t record[BAND_RECORD_SIZE];
+  uint8_t verify[BAND_RECORD_SIZE];
+
+  record[0] = (uint8_t)(0xA0 | (sequence & 0x0F));
+  const uint8_t *source = (const uint8_t *)&band_setting;
+  for (uint8_t i = 0; i < sizeof(band_setting); i++) record[i + 1] = source[i];
+  record[BAND_RECORD_SIZE - 1] = memoryCrc8(record, BAND_RECORD_SIZE - 1);
+
+  for (uint8_t i = 0; i < BAND_RECORD_SIZE - 1; i++) {
+    memoryRingWriteByte(base, BAND_RING_SIZE,
+                        (uint8_t)((position + i) % BAND_RING_SIZE), record[i]);
+  }
+  memoryRingWriteByte(base, BAND_RING_SIZE,
+                      (uint8_t)((position + BAND_RECORD_SIZE - 1) % BAND_RING_SIZE),
+                      record[BAND_RECORD_SIZE - 1]);
+
+  for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
+    verify[i] = memoryRingReadByte(base, BAND_RING_SIZE,
+                                   (uint8_t)((position + i) % BAND_RING_SIZE));
+    if (verify[i] != record[i]) return false;
+  }
+  if (memoryCrc8(verify, BAND_RECORD_SIZE - 1) != verify[BAND_RECORD_SIZE - 1]) return false;
+
+  memoryBandCacheValid = true;
+  memoryBandHasRecord = true;
+  memoryCachedBand = targetBand;
+  memoryBandLastPos = position;
+  memoryBandLastSeq = (uint8_t)(sequence & 0x0F);
+  return true;
+}
+
+// Однопроходный поиск последнего выбора диапазона в кольце №31.
+static bool memoryFindSelectionRecord() {
+  const uint16_t base = memorySelectionBase();
+  uint8_t record[BAND_LOG_RECORD_SIZE];
+  bool found = false;
+  uint8_t bestSequence = 0;
+  uint8_t bestPosition = 0;
+  uint8_t bestBand = band;
+
+  for (uint8_t position = 0; position < BAND_LOG_RING_SIZE; position++) {
+    record[0] = memoryRingReadByte(base, BAND_LOG_RING_SIZE, position);
+    if ((record[0] & 0xE0) != 0xA0) continue;
+
+    uint8_t candidateBand = (uint8_t)(record[0] & 0x1F);
+    if (candidateBand > max_number_of_bands) continue;
+
+    record[1] = memoryRingReadByte(base, BAND_LOG_RING_SIZE,
+                                   (uint8_t)((position + 1) % BAND_LOG_RING_SIZE));
+    record[2] = memoryRingReadByte(base, BAND_LOG_RING_SIZE,
+                                   (uint8_t)((position + 2) % BAND_LOG_RING_SIZE));
+    if (memoryCrc8(record, 2) != record[2]) continue;
+
+    if (!found || memorySequenceNewer8(record[1], bestSequence)) {
+      found = true;
+      bestSequence = record[1];
+      bestPosition = position;
+      bestBand = candidateBand;
+    }
+  }
+
+  memorySelectionHasRecord = found;
+  memorySelectionLastPos = bestPosition;
+  memorySelectionLastSeq = bestSequence;
+  if (found) band = bestBand;
+  return found;
+}
+
+// Служебная запись: сигнатура+Band, номер события, CRC последним байтом.
+static bool memoryStoreSelectionRecord(uint8_t position, uint8_t sequence) {
+  const uint16_t base = memorySelectionBase();
+  uint8_t record[BAND_LOG_RECORD_SIZE];
+  uint8_t verify[BAND_LOG_RECORD_SIZE];
+
+  record[0] = (uint8_t)(0xA0 | (band & 0x1F));
+  record[1] = sequence;
+  record[2] = memoryCrc8(record, 2);
+
+  memoryRingWriteByte(base, BAND_LOG_RING_SIZE, position, record[0]);
+  memoryRingWriteByte(base, BAND_LOG_RING_SIZE,
+                      (uint8_t)((position + 1) % BAND_LOG_RING_SIZE), record[1]);
+  memoryRingWriteByte(base, BAND_LOG_RING_SIZE,
+                      (uint8_t)((position + 2) % BAND_LOG_RING_SIZE), record[2]);
+
+  for (uint8_t i = 0; i < BAND_LOG_RECORD_SIZE; i++) {
+    verify[i] = memoryRingReadByte(base, BAND_LOG_RING_SIZE,
+                                   (uint8_t)((position + i) % BAND_LOG_RING_SIZE));
+    if (verify[i] != record[i]) return false;
+  }
+  if (memoryCrc8(verify, 2) != verify[2]) return false;
+
+  memorySelectionHasRecord = true;
+  memorySelectionLastPos = position;
+  memorySelectionLastSeq = sequence;
+  return true;
+}
+
+// Одна универсальная процедура: чтение или запись выбранного набора данных.
+bool memory(uint8_t command) {
+  if (command == MEM_READ) {
+    if (!memoryInitialized) {
+      memoryLoadGeneralSettings();
+      band = general_setting.band;
+      if (band > max_number_of_bands) band = 0;
+
+      // Если журнал выбора пуст, сохраняем исходный band в позиции 0.
+      if (!memoryFindSelectionRecord()) memoryStoreSelectionRecord(0, 0);
+      memoryInitialized = true;
+    }
+
+    if (band > max_number_of_bands) band = 0;
+
+    // Если кольцо диапазона пустое, записываем туда текущее band_setting:
+    // повторно структуру не инициализируем, наследуем прежнее поведение.
+    if (!memoryFindBandRecord(band, true)) {
+      return memoryStoreBandRecord(band, 0, 0);
+    }
+    return true;
+  }
+
+  if (command == MEM_WRITE) {
+    if (!memoryInitialized) return false;
+
+    memorySaveGeneralSettings();
+
+    // Для Restore или смены band вне MEM_READ ищем позицию без загрузки данных.
+    if (!memoryBandCacheValid || memoryCachedBand != band) {
+      memoryFindBandRecord(band, false);
+    }
+
+    uint8_t bandPosition = memoryBandHasRecord
+        ? (uint8_t)((memoryBandLastPos + BAND_RECORD_SIZE) % BAND_RING_SIZE) : 0;
+    uint8_t bandSequence = memoryBandHasRecord
+        ? (uint8_t)((memoryBandLastSeq + 1) & 0x0F) : 0;
+
+    if (!memoryStoreBandRecord(band, bandPosition, bandSequence)) return false;
+
+    uint8_t selectionPosition = memorySelectionHasRecord
+        ? (uint8_t)((memorySelectionLastPos + BAND_LOG_RECORD_SIZE) % BAND_LOG_RING_SIZE) : 0;
+    uint8_t selectionSequence = memorySelectionHasRecord
+        ? (uint8_t)(memorySelectionLastSeq + 1) : 0;
+
+    return memoryStoreSelectionRecord(selectionPosition, selectionSequence);
+  }
+
+  return false;
+}
+
 
 void versionprint() {
   display.clear();
@@ -1326,6 +1565,7 @@ void backup() {
   EEPROM.put(eeAddress, general_setting); // Backup general_setting
   eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
   EEPROM.put(eeAddress, band_setting); // Backup band_setting
+  EEPROM.put(eeAddress + sizeof(band_setting), band); // Backup selected band
   display.print(F("Ok"));
   display.update();
   delay(1000);
@@ -1344,7 +1584,10 @@ void restore() {
   EEPROM.get(eeAddress, general_setting); // Restore general_setting
   eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
   EEPROM.get(eeAddress, band_setting); // Restore band_setting
-  memwrite ();
+  EEPROM.get(eeAddress + sizeof(band_setting), band); // Restore selected band
+  if (band > max_number_of_bands) band = general_setting.band;
+  band = constrain(band, 0, general_setting.number_of_bands);
+  memory(MEM_WRITE);
   display.print(F(" Ok"));
   display.update();
   delay(1000);
