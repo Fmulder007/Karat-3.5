@@ -1881,7 +1881,7 @@ void backup(uint8_t slot) {
     return;
   }
 
-  display.print(F(" Ok"));
+  display.print(F(" Готово"));
   display.update();
   delay(1000);
 
@@ -2028,7 +2028,7 @@ void restore(uint8_t slot) {
     restoreHalt(F("Ошибка проверки AT24C32"));
   }
 
-  display.print(F("Восстановление OK"));
+  display.print(F("Восстановлено"));
   display.update();
   delay(1000);
 
