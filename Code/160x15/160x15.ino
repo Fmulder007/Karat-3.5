@@ -191,6 +191,29 @@ byte restore_index = 0;
 #define BAND_LOG_RING_SIZE 88
 #define BAND_LOG_RECORD_SIZE 3
 
+// Два ручных слота полного Backup во внутренней EEPROM МК.
+#define BACKUP_SLOT_SIZE 510U
+#define BACKUP_SLOT_COUNT 2U
+#define BACKUP_TOTAL_SIZE (BACKUP_SLOT_SIZE * BACKUP_SLOT_COUNT)
+#define BACKUP_RING_DATA_OFFSET (sizeof(general_set) + 1U)
+#define BACKUP_META_OFFSET 504U
+#define BACKUP_SIGNATURE 0x4B
+#define BACKUP_FORMAT_VERSION 1
+#define BACKUP_COMMIT_MARKER 0xA5
+#define BACKUP_COMMIT_OFFSET 507U
+#define BACKUP_CRC_OFFSET 508U
+#define BACKUP_CRC_LENGTH 507U
+
+static_assert(BACKUP_TOTAL_SIZE <= 1024U, "Backup slots do not fit internal EEPROM");
+
+#if defined(E2END)
+static_assert((E2END + 1UL) >= BACKUP_TOTAL_SIZE, "Internal EEPROM is too small for two backup slots");
+#endif
+
+// Слоты выбираются вызывающим кодом. Без аргумента используется слот 1.
+void backup(uint8_t slot = 1);
+void restore(uint8_t slot = 1);
+
 static Eeprom24C32_64 AT24C32(0x50);
 Si5351 si;
 Encoder myEnc(2, 3); //порты подключения енкодера.
@@ -1223,7 +1246,8 @@ static void memoryLoadGeneralSettings() {
 }
 
 // Один проход по всем возможным начальным адресам кольца текущего диапазона.
-static bool memoryFindBandRecord(uint8_t targetBand, bool loadSettings) {
+static bool memoryFindBandRecord(uint8_t targetBand, bool loadSettings,
+                                  uint8_t *latestRecord) {
   const uint16_t base = memoryBandBase(targetBand);
   uint8_t record[BAND_RECORD_SIZE];
   bool found = false;
@@ -1246,6 +1270,13 @@ static bool memoryFindBandRecord(uint8_t targetBand, bool loadSettings) {
       found = true;
       bestSequence = sequence;
       bestPosition = position;
+
+      // При необходимости отдаём наружу полную запись в исходном формате.
+      if (latestRecord) {
+        for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
+          latestRecord[i] = record[i];
+        }
+      }
 
       // В рабочую структуру переносим только запись с верной CRC.
       if (loadSettings) {
@@ -1385,7 +1416,7 @@ bool memory(uint8_t command) {
 
     // Если кольцо диапазона пустое, записываем туда текущее band_setting:
     // повторно структуру не инициализируем, наследуем прежнее поведение.
-    if (!memoryFindBandRecord(band, true)) {
+    if (!memoryFindBandRecord(band, true, NULL)) {
       return memoryStoreBandRecord(band, 0, 0);
     }
     return true;
@@ -1398,7 +1429,7 @@ bool memory(uint8_t command) {
 
     // Для Restore или смены band вне MEM_READ ищем позицию без загрузки данных.
     if (!memoryBandCacheValid || memoryCachedBand != band) {
-      memoryFindBandRecord(band, false);
+      memoryFindBandRecord(band, false, NULL);
     }
 
     uint8_t bandPosition = memoryBandHasRecord
@@ -1580,44 +1611,421 @@ void bpfset() {
   //}
 }
 
-void backup() {
+// Адрес начала выбранного слота внутренней EEPROM.
+static uint16_t backupSlotBase(uint8_t slot) {
+  return (uint16_t)((slot - 1U) * BACKUP_SLOT_SIZE);
+}
+
+static bool backupSlotNumberValid(uint8_t slot) {
+  return slot == 1 || slot == 2;
+}
+
+static bool backupInternalEepromAvailable() {
+  return EEPROM.length() >= BACKUP_TOTAL_SIZE;
+}
+
+static void backupWriteByte(uint16_t address, uint8_t value) {
+  EEPROM.update(address, value);
+}
+
+static uint8_t backupReadByte(uint16_t address) {
+  return EEPROM.read(address);
+}
+
+// CRC-16/CCITT-FALSE: poly=0x1021, init=0xFFFF, refin/refout=false, xorout=0.
+static uint16_t backupCalculateCrc16(uint16_t base, uint16_t length) {
+  uint16_t crc = 0xFFFF;
+
+  for (uint16_t i = 0; i < length; i++) {
+    crc ^= (uint16_t)backupReadByte((uint16_t)(base + i)) << 8;
+
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      if (crc & 0x8000) crc = (uint16_t)((crc << 1) ^ 0x1021);
+      else crc <<= 1;
+    }
+  }
+
+  return crc;
+}
+
+static bool backupRecordIsEmpty(const uint8_t *record) {
+  for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
+    if (record[i] != 0xFF) return false;
+  }
+  return true;
+}
+
+static void backupReadBandRecord(uint16_t slotBase, uint8_t index,
+                                 uint8_t *record) {
+  const uint16_t address = (uint16_t)(slotBase + BACKUP_RING_DATA_OFFSET +
+                                      (uint16_t)index * BAND_RECORD_SIZE);
+  for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
+    record[i] = backupReadByte((uint16_t)(address + i));
+  }
+}
+
+static void backupWriteBandRecord(uint16_t slotBase, uint8_t index,
+                                  const uint8_t *record) {
+  const uint16_t address = (uint16_t)(slotBase + BACKUP_RING_DATA_OFFSET +
+                                      (uint16_t)index * BAND_RECORD_SIZE);
+  for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
+    backupWriteByte((uint16_t)(address + i), record[i]);
+  }
+}
+
+// Проверяем, что всё кольцо действительно пустое, а не просто не содержит
+// ни одной записи с правильной CRC.
+static bool backupBandRingIsErased(uint8_t targetBand) {
+  const uint16_t base = memoryBandBase(targetBand);
+
+  for (uint8_t position = 0; position < BAND_RING_SIZE; position++) {
+    if (memoryRingReadByte(base, BAND_RING_SIZE, position) != 0xFF) return false;
+  }
+  return true;
+}
+
+static void backupMakeBandRecord(uint8_t *record, uint8_t sequence,
+                                 const band_set &settings) {
+  record[0] = (uint8_t)(0xA0 | (sequence & 0x0F));
+
+  const uint8_t *source = (const uint8_t *)&settings;
+  for (uint8_t i = 0; i < sizeof(settings); i++) {
+    record[i + 1] = source[i];
+  }
+
+  record[BAND_RECORD_SIZE - 1] = memoryCrc8(record, BAND_RECORD_SIZE - 1);
+}
+
+static void backupRestoreActiveBandCache(uint8_t activeBand, bool hasRecord,
+                                         uint8_t lastPosition,
+                                         uint8_t lastSequence) {
+  memoryBandCacheValid = true;
+  memoryBandHasRecord = hasRecord;
+  memoryCachedBand = activeBand;
+  memoryBandLastPos = lastPosition;
+  memoryBandLastSeq = lastSequence;
+}
+
+static uint16_t backupGeneralChecksum(const general_set &settings) {
+  int16_t sum = 0;
+  const uint8_t *data = (const uint8_t *)&settings;
+
+  for (uint8_t i = 0; i < sizeof(settings); i++) sum += data[i];
+
+  return (uint16_t)(sum + crcmod);
+}
+
+// Проверка только выбранного слота. Внешняя AT24C32 здесь не затрагивается.
+static bool backupValidateSlot(uint8_t slot) {
+  if (!backupSlotNumberValid(slot) || !backupInternalEepromAvailable()) return false;
+
+  const uint16_t base = backupSlotBase(slot);
+
+  if (backupReadByte((uint16_t)(base + BACKUP_META_OFFSET)) != BACKUP_SIGNATURE) return false;
+  if (backupReadByte((uint16_t)(base + BACKUP_META_OFFSET + 1U)) != BACKUP_FORMAT_VERSION) return false;
+  if (backupReadByte((uint16_t)(base + BACKUP_META_OFFSET + 2U)) != slot) return false;
+  if (backupReadByte((uint16_t)(base + BACKUP_COMMIT_OFFSET)) != BACKUP_COMMIT_MARKER) return false;
+
+  const uint16_t storedCrc =
+      (uint16_t)backupReadByte((uint16_t)(base + BACKUP_CRC_OFFSET)) |
+      ((uint16_t)backupReadByte((uint16_t)(base + BACKUP_CRC_OFFSET + 1U)) << 8);
+
+  if (backupCalculateCrc16(base, BACKUP_CRC_LENGTH) != storedCrc) return false;
+
+  const uint8_t numberOfBands = backupReadByte((uint16_t)(base + 2U));
+  const uint8_t selectedBand = backupReadByte((uint16_t)(base + sizeof(general_set)));
+
+  if (numberOfBands > max_number_of_bands) return false;
+  if (selectedBand > numberOfBands) return false;
+
+  uint8_t record[BAND_RECORD_SIZE];
+
+  for (uint8_t index = 0; index < BAND_RING_COUNT; index++) {
+    backupReadBandRecord(base, index, record);
+    if (backupRecordIsEmpty(record)) continue;
+
+    if ((record[0] & 0xF0) != 0xA0) return false;
+    if (memoryCrc8(record, BAND_RECORD_SIZE - 1) != record[BAND_RECORD_SIZE - 1]) return false;
+  }
+
+  return true;
+}
+
+static void backupShowError(const __FlashStringHelper *message) {
+  display.print(message);
+  display.update();
+  delay(1000);
+}
+
+// Создаёт полный образ в указанном слоте. В AT24C32 выполняются только чтения.
+void backup(uint8_t slot) {
   display.clear();
   display.setCursor(0, 0);
-  //display.setTextColor(WHITE);
   display.setScale(2);
   display.print(F("Резерв.."));
   display.update();
-  int eeAddress = 0; //Устанавливаем адрес на 0
-  EEPROM.put(eeAddress, general_setting); // Backup general_setting
-  eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
-  EEPROM.put(eeAddress, band_setting); // Backup band_setting
-  EEPROM.put(eeAddress + sizeof(band_setting), band); // Backup selected band
-  display.print(F("Ok"));
-  display.update();
-  delay(1000);
-  menu = 0;
-  //asm volatile("jmp 0x00");
-}
 
-void restore() {
-  display.clear();
-  display.setCursor(0, 0);
-  //display.setTextColor(WHITE);
-  display.setScale(2);
-  display.print(F("Восстан.."));
-  display.update();
-  int eeAddress = 0; //Устанавливаем адрес на 0
-  EEPROM.get(eeAddress, general_setting); // Restore general_setting
-  eeAddress = sizeof(general_setting) + 1; //Устанавливаем адрес на следующий за general_setting
-  EEPROM.get(eeAddress, band_setting); // Restore band_setting
-  EEPROM.get(eeAddress + sizeof(band_setting), band); // Restore selected band
-  if (band > max_number_of_bands) band = general_setting.band;
-  band = constrain(band, 0, general_setting.number_of_bands);
-  memory(MEM_WRITE);
+  if (!backupSlotNumberValid(slot) || !backupInternalEepromAvailable()) {
+    backupShowError(F("Ошибка слота"));
+    menu = 0;
+    return;
+  }
+
+  // Фиксируем RAM-состояние до сканирования остальных диапазонов.
+  const general_set savedGeneral = general_setting;
+  const band_set savedActiveSettings = band_setting;
+  const uint8_t savedBand = band;
+
+  if (savedGeneral.number_of_bands > max_number_of_bands ||
+      savedBand > savedGeneral.number_of_bands) {
+    backupShowError(F("Ошибка настроек"));
+    menu = 0;
+    return;
+  }
+
+  // Запоминаем последнюю запись активного кольца. Для снимка из RAM
+  // номер последовательности будет следующим, но само кольцо не меняем.
+  const bool activeHasRecord = memoryFindBandRecord(savedBand, false, NULL);
+  const uint8_t activeLastPosition = memoryBandLastPos;
+  const uint8_t activeLastSequence = memoryBandLastSeq;
+
+  bool ringsValid = true;
+
+  if (!activeHasRecord && !backupBandRingIsErased(savedBand)) ringsValid = false;
+
+  // Предварительно убеждаемся, что остальные кольца либо содержат
+  // корректную запись, либо действительно полностью пусты.
+  for (uint8_t index = 0; index < BAND_RING_COUNT; index++) {
+    if (index == savedBand) continue;
+
+    if (!memoryFindBandRecord(index, false, NULL) && !backupBandRingIsErased(index)) {
+      ringsValid = false;
+      break;
+    }
+  }
+
+  backupRestoreActiveBandCache(savedBand, activeHasRecord,
+                               activeLastPosition, activeLastSequence);
+
+  if (!ringsValid) {
+    backupShowError(F("Ошибка памяти AT24C32"));
+    menu = 0;
+    return;
+  }
+
+  const uint16_t base = backupSlotBase(slot);
+
+  // Сначала делаем выбранный слот недействительным. Маркер 0xA5
+  // будет записан последним, после данных и CRC16.
+  backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
+
+  // Общие настройки копируются прямо из RAM без изменения поля band.
+  const uint8_t *generalBytes = (const uint8_t *)&savedGeneral;
+  for (uint8_t i = 0; i < sizeof(savedGeneral); i++) {
+    backupWriteByte((uint16_t)(base + i), generalBytes[i]);
+  }
+
+  backupWriteByte((uint16_t)(base + sizeof(general_set)), savedBand);
+
+  uint8_t record[BAND_RECORD_SIZE];
+
+  for (uint8_t index = 0; index < BAND_RING_COUNT; index++) {
+    if (index == savedBand) {
+      const uint8_t sequence = activeHasRecord
+          ? (uint8_t)((activeLastSequence + 1U) & 0x0F)
+          : 0;
+      backupMakeBandRecord(record, sequence, savedActiveSettings);
+    }
+    else if (!memoryFindBandRecord(index, false, record)) {
+      // Повторно убеждаемся, что кольцо не повреждено.
+      if (!backupBandRingIsErased(index)) {
+        backupRestoreActiveBandCache(savedBand, activeHasRecord,
+                                     activeLastPosition, activeLastSequence);
+        backupShowError(F("Ошибка памяти AT24C32"));
+        backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
+        menu = 0;
+        return;
+      }
+      for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) record[i] = 0xFF;
+    }
+
+    backupWriteBandRecord(base, index, record);
+  }
+
+  backupRestoreActiveBandCache(savedBand, activeHasRecord,
+                               activeLastPosition, activeLastSequence);
+
+  // Служебные поля образа. Маркер завершения пока не записываем.
+  backupWriteByte((uint16_t)(base + BACKUP_META_OFFSET), BACKUP_SIGNATURE);
+  backupWriteByte((uint16_t)(base + BACKUP_META_OFFSET + 1U), BACKUP_FORMAT_VERSION);
+  backupWriteByte((uint16_t)(base + BACKUP_META_OFFSET + 2U), slot);
+
+  const uint16_t crc = backupCalculateCrc16(base, BACKUP_CRC_LENGTH);
+  backupWriteByte((uint16_t)(base + BACKUP_CRC_OFFSET), (uint8_t)(crc & 0xFF));
+  backupWriteByte((uint16_t)(base + BACKUP_CRC_OFFSET + 1U), (uint8_t)(crc >> 8));
+
+  // Последняя операция формирования слота — маркер готовности.
+  backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), BACKUP_COMMIT_MARKER);
+
+  if (!backupValidateSlot(slot)) {
+    backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
+    backupShowError(F("Ошибка бекапа"));
+    menu = 0;
+    return;
+  }
+
   display.print(F(" Ok"));
   display.update();
   delay(1000);
-  //menu=0;
+
+  // Возвращаемся на главный экран и запускаем штатное отложенное сохранение.
+  menu = 0;
+  actencf = true;
+  actenc = millis();
+}
+
+static bool backupVerifyRestoredImage(uint16_t slotBase,
+                                      const general_set &restoredGeneral,
+                                      uint8_t restoredBand) {
+  const uint16_t generalChecksum = backupGeneralChecksum(restoredGeneral);
+
+  if (AT24C32.readByte(0) != (uint8_t)(generalChecksum & 0xFF)) return false;
+  if (AT24C32.readByte(1) != (uint8_t)(generalChecksum >> 8)) return false;
+
+  const uint8_t *generalBytes = (const uint8_t *)&restoredGeneral;
+  for (uint8_t i = 0; i < sizeof(restoredGeneral); i++) {
+    if (AT24C32.readByte((word)(i + 2U)) != generalBytes[i]) return false;
+  }
+
+  uint8_t expectedRecord[BAND_RECORD_SIZE];
+  uint8_t verifyRecord[BAND_RECORD_SIZE];
+
+  // Проверяем все 128 байт каждого кольца, а не только его запись.
+  for (uint8_t index = 0; index < BAND_RING_COUNT; index++) {
+    backupReadBandRecord(slotBase, index, expectedRecord);
+    const bool empty = backupRecordIsEmpty(expectedRecord);
+    const uint16_t ringBase = memoryBandBase(index);
+
+    for (uint8_t position = 0; position < BAND_RING_SIZE; position++) {
+      const uint8_t expected = (!empty && position < BAND_RECORD_SIZE)
+          ? expectedRecord[position]
+          : 0xFF;
+      const uint8_t actual = AT24C32.readByte((word)(ringBase + position));
+
+      if (actual != expected) return false;
+      if (position < BAND_RECORD_SIZE) verifyRecord[position] = actual;
+    }
+
+    if (!empty &&
+        ((verifyRecord[0] & 0xF0) != 0xA0 ||
+         memoryCrc8(verifyRecord, BAND_RECORD_SIZE - 1) != verifyRecord[BAND_RECORD_SIZE - 1])) {
+      return false;
+    }
+  }
+
+  // В служебном кольце должна остаться только одна запись выбора диапазона.
+  uint8_t selectionRecord[BAND_LOG_RECORD_SIZE];
+  selectionRecord[0] = (uint8_t)(0xA0 | (restoredBand & 0x1F));
+  selectionRecord[1] = 0;
+  selectionRecord[2] = memoryCrc8(selectionRecord, 2);
+
+  const uint16_t selectionBase = memorySelectionBase();
+  for (uint8_t position = 0; position < BAND_LOG_RING_SIZE; position++) {
+    const uint8_t expected = (position < BAND_LOG_RECORD_SIZE)
+        ? selectionRecord[position]
+        : 0xFF;
+    const uint8_t actual = AT24C32.readByte((word)(selectionBase + position));
+    if (actual != expected) return false;
+  }
+
+  return memoryCrc8(selectionRecord, 2) == selectionRecord[2];
+}
+
+static void restoreHalt(const __FlashStringHelper *message) {
+  display.print(message);
+  display.update();
+  while (1) {
+    // Не запускаем трансивер с непроверенными или неполностью восстановленными данными.
+  }
+}
+
+// Восстанавливает только явно выбранный слот. При любой ошибке проверки образа
+// внешняя AT24C32 остаётся нетронутой.
+void restore(uint8_t slot) {
+  display.clear();
+  display.setCursor(0, 0);
+  display.setScale(1);
+  display.print(F("Проверка бекапа"));
+  display.update();
+
+  if (!backupSlotNumberValid(slot)) restoreHalt(F("Неверный номер слота"));
+  if (!backupValidateSlot(slot)) restoreHalt(F("Бекап повреждён"));
+
+  const uint16_t base = backupSlotBase(slot);
+
+  // Только после полной проверки выбранного образа разрешается стирание.
+  display.print(F("Стирание AT24C32"));
+  display.update();
+
+  for (uint16_t address = 0; address < 4096U; address++) {
+    AT24C32.writeEE((word)address, (byte)0xFF);
+
+    // Читаем каждый байт сразу после его записи.
+    if (AT24C32.readByte((word)address) != 0xFF) {
+      restoreHalt(F("Замените микросхему AT24C32"));
+    }
+  }
+
+  display.print(F("Запись настроек"));
+  display.update();
+
+  general_set restoredGeneral;
+  EEPROM.get(base, restoredGeneral);
+
+  const uint8_t restoredBand = backupReadByte((uint16_t)(base + sizeof(general_set)));
+  const uint16_t generalChecksum = backupGeneralChecksum(restoredGeneral);
+
+  // Сохраняем прежнюю раскладку: CRC в 0..1, структура в 2..39.
+  AT24C32.writeEE(2, restoredGeneral);
+  AT24C32.writeEE(0, (int16_t)generalChecksum);
+
+  // В каждое непустое кольцо переносим единственную сохранённую 15-байтовую
+  // запись с позиции 0, не меняя её сигнатуру, последовательность и CRC-8.
+  uint8_t record[BAND_RECORD_SIZE];
+
+  for (uint8_t index = 0; index < BAND_RING_COUNT; index++) {
+    backupReadBandRecord(base, index, record);
+    if (!backupRecordIsEmpty(record)) {
+      const uint16_t ringBase = memoryBandBase(index);
+      for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
+        AT24C32.writeEE((word)(ringBase + i), record[i]);
+      }
+    }
+  }
+
+  // Восстанавливаем выбранный диапазон одной штатной записью журнала.
+  uint8_t selectionRecord[BAND_LOG_RECORD_SIZE];
+  selectionRecord[0] = (uint8_t)(0xA0 | (restoredBand & 0x1F));
+  selectionRecord[1] = 0;
+  selectionRecord[2] = memoryCrc8(selectionRecord, 2);
+
+  const uint16_t selectionBase = memorySelectionBase();
+  for (uint8_t i = 0; i < BAND_LOG_RECORD_SIZE; i++) {
+    AT24C32.writeEE((word)(selectionBase + i), selectionRecord[i]);
+  }
+
+  display.print(F("Проверка записи"));
+  display.update();
+
+  if (!backupVerifyRestoredImage(base, restoredGeneral, restoredBand)) {
+    restoreHalt(F("Ошибка проверки AT24C32"));
+  }
+
+  display.print(F("Восстановление OK"));
+  display.update();
+  delay(1000);
+
+  // После успешной проверки — обязательная перезагрузка, как в исходной версии.
   asm volatile("jmp 0x00");
 }
 
