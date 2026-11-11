@@ -117,6 +117,10 @@ struct band_set {
   uint32_t max_freq = 300UL; // *100KHz Максимальный предел частоты диапазона VFO.
 } band_setting;
 
+// Размеры структур являются частью фиксированного формата AT24C32.
+static_assert(sizeof(general_set) == 38, "general_set layout changed: update EEPROM map");
+static_assert(sizeof(band_set) == 13, "band_set layout changed: update ring record format");
+
 // Текущий рабочий диапазон. Поле general_setting.band оставлено в структуре для старого формата.
 uint8_t band = 0;
 
