@@ -1771,22 +1771,43 @@ static bool backupValidateSlot(uint8_t slot) {
   return true;
 }
 
-static void backupShowError(const __FlashStringHelper *message) {
-  display.print(message);
+// Единый четырёхстрочный журнал для Backup и Restore.
+// Храним только указатели на строки в PROGMEM (F()), сами тексты не копируем в RAM.
+static void backupRestoreLogLine(const __FlashStringHelper *message,
+                                 bool resetLog = false) {
+  static const __FlashStringHelper *lines[4] = {NULL, NULL, NULL, NULL};
+  static uint8_t lineCount = 0;
+
+  if (resetLog) {
+    for (uint8_t i = 0; i < 4; i++) lines[i] = NULL;
+    lineCount = 0;
+  }
+
+  if (lineCount < 4) {
+    lines[lineCount++] = message;
+  } else {
+    for (uint8_t i = 0; i < 3; i++) lines[i] = lines[i + 1];
+    lines[3] = message;
+  }
+
+  display.setScale(1);
+  display.clear();
+
+  for (uint8_t i = 0; i < lineCount; i++) {
+    display.setCursorXY(0, (int)i * 8);
+    display.print(lines[i]);
+  }
+
   display.update();
-  delay(1000);
 }
 
 // Создаёт полный образ в указанном слоте. В AT24C32 выполняются только чтения.
 void backup(uint8_t slot) {
-  display.clear();
-  display.setCursor(0, 0);
-  display.setScale(2);
-  display.print(F("Резерв.."));
-  display.update();
+  backupRestoreLogLine(F("Резерв.."), true);
 
   if (!backupSlotNumberValid(slot) || !backupInternalEepromAvailable()) {
-    backupShowError(F("Ошибка слота"));
+    backupRestoreLogLine(F("Ошибка слота"));
+    delay(1000);
     menu = 0;
     return;
   }
@@ -1798,7 +1819,8 @@ void backup(uint8_t slot) {
 
   if (savedGeneral.number_of_bands > max_number_of_bands ||
       savedBand > savedGeneral.number_of_bands) {
-    backupShowError(F("Ошибка настроек"));
+    backupRestoreLogLine(F("Ошибка настроек"));
+    delay(1000);
     menu = 0;
     return;
   }
@@ -1828,7 +1850,8 @@ void backup(uint8_t slot) {
                                activeLastPosition, activeLastSequence);
 
   if (!ringsValid) {
-    backupShowError(F("Ошибка памяти AT24C32"));
+    backupRestoreLogLine(F("Ошибка памяти AT24C32"));
+    delay(1000);
     menu = 0;
     return;
   }
@@ -1861,7 +1884,8 @@ void backup(uint8_t slot) {
       if (!backupBandRingIsErased(index)) {
         backupRestoreActiveBandCache(savedBand, activeHasRecord,
                                      activeLastPosition, activeLastSequence);
-        backupShowError(F("Ошибка памяти AT24C32"));
+        backupRestoreLogLine(F("Ошибка памяти AT24C32"));
+    delay(1000);
         backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
         menu = 0;
         return;
@@ -1889,13 +1913,13 @@ void backup(uint8_t slot) {
 
   if (!backupValidateSlot(slot)) {
     backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
-    backupShowError(F("Ошибка бекапа"));
+    backupRestoreLogLine(F("Ошибка бекапа"));
+    delay(1000);
     menu = 0;
     return;
   }
 
-  display.print(F(" Готово"));
-  display.update();
+  backupRestoreLogLine(F("Готово"));
   delay(1000);
 
   // Возвращаемся на главный экран и запускаем штатное отложенное сохранение.
@@ -1960,8 +1984,7 @@ static bool backupVerifyRestoredImage(uint16_t slotBase,
 }
 
 static void restoreHalt(const __FlashStringHelper *message) {
-  display.print(message);
-  display.update();
+  backupRestoreLogLine(message);
   while (1) {
     // Не запускаем трансивер с непроверенными или неполностью восстановленными данными.
   }
@@ -1970,11 +1993,7 @@ static void restoreHalt(const __FlashStringHelper *message) {
 // Восстанавливает только явно выбранный слот. При любой ошибке проверки образа
 // внешняя AT24C32 остаётся нетронутой.
 void restore(uint8_t slot) {
-  display.clear();
-  display.setCursor(0, 0);
-  display.setScale(1);
-  display.print(F("Проверка бекапа"));
-  display.update();
+  backupRestoreLogLine(F("Проверка бекапа"), true);
 
   if (!backupSlotNumberValid(slot)) restoreHalt(F("Неверный номер слота"));
   if (!backupValidateSlot(slot)) restoreHalt(F("Бекап повреждён"));
@@ -1982,20 +2001,18 @@ void restore(uint8_t slot) {
   const uint16_t base = backupSlotBase(slot);
 
   // Только после полной проверки выбранного образа разрешается стирание.
-  display.print(F("Стирание AT24C32"));
-  display.update();
+  backupRestoreLogLine(F("Стирание AT24C32"));
 
   for (uint16_t address = 0; address < 4096U; address++) {
     AT24C32.writeEE((word)address, (byte)0xFF);
 
     // Читаем каждый байт сразу после его записи.
     if (AT24C32.readByte((word)address) != 0xFF) {
-      restoreHalt(F("Замените микросхему AT24C32"));
+      restoreHalt(F("Замените AT24C32"));
     }
   }
 
-  display.print(F("Запись настроек"));
-  display.update();
+  backupRestoreLogLine(F("Запись настроек"));
 
   general_set restoredGeneral;
   EEPROM.get(base, restoredGeneral);
@@ -2030,15 +2047,13 @@ void restore(uint8_t slot) {
     AT24C32.writeEE((word)(selectionBase + i), selectionRecord[i]);
   }
 
-  display.print(F("Проверка записи"));
-  display.update();
+  backupRestoreLogLine(F("Проверка записи"));
 
   if (!backupVerifyRestoredImage(base, restoredGeneral, restoredBand)) {
-    restoreHalt(F("Ошибка проверки AT24C32"));
+    restoreHalt(F("Ошибка проверки"));
   }
 
-  display.print(F("Восстановлено"));
-  display.update();
+  backupRestoreLogLine(F("Восстановлено"));
   delay(1000);
 
   // После успешной проверки — обязательная перезагрузка, как в исходной версии.
