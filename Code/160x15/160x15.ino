@@ -1885,7 +1885,7 @@ void backup(uint8_t slot) {
         backupRestoreActiveBandCache(savedBand, activeHasRecord,
                                      activeLastPosition, activeLastSequence);
         backupRestoreLogLine(F("Ошибка памяти AT24C32"));
-    delay(1000);
+        delay(1000);
         backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
         menu = 0;
         return;
