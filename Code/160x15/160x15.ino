@@ -191,30 +191,68 @@ byte restore_index = 0;
 #define BAND_LOG_RING_SIZE 88
 #define BAND_LOG_RECORD_SIZE 3
 
-// Два ручных слота полного Backup во внутренней EEPROM МК.
-#define BACKUP_SLOT_SIZE 510U
-#define BACKUP_SLOT_COUNT 2U
-#define BACKUP_TOTAL_SIZE (BACKUP_SLOT_SIZE * BACKUP_SLOT_COUNT)
-#define BACKUP_RING_DATA_OFFSET (sizeof(general_set) + 1U)
-#define BACKUP_META_OFFSET 504U
-#define BACKUP_SIGNATURE 0x4B
-#define BACKUP_FORMAT_VERSION 1
-#define BACKUP_COMMIT_MARKER 0xA5
-#define BACKUP_COMMIT_OFFSET 507U
-#define BACKUP_CRC_OFFSET 508U
-#define BACKUP_CRC_LENGTH 507U
+// Единая карта двух ручных слотов полного Backup во внутренней EEPROM МК.
+// Все смещения заданы относительно начала соответствующего слота.
+namespace BackupMap {
+enum : uint16_t {
+  SlotSize = 510U,
+  SlotCount = 2U,
+  TotalSize = SlotSize * SlotCount,
 
-static_assert(BACKUP_TOTAL_SIZE <= 1024U, "Backup slots do not fit internal EEPROM");
+  GeneralOffset = 0U,
+  GeneralSize = sizeof(general_set),
+  SelectedBandOffset = GeneralOffset + GeneralSize,
+  RingDataOffset = SelectedBandOffset + 1U,
+  RingRecordSize = BAND_RECORD_SIZE,
+  RingCount = BAND_RING_COUNT,
+  RingDataSize = RingCount * RingRecordSize,
+
+  MetaOffset = RingDataOffset + RingDataSize,
+  SignatureOffset = MetaOffset,
+  VersionOffset = SignatureOffset + 1U,
+  SlotNumberOffset = VersionOffset + 1U,
+  CommitOffset = SlotNumberOffset + 1U,
+
+  // CRC охватывает байты 0..506. Маркер CommitOffset в CRC не входит.
+  CrcLength = CommitOffset,
+  CrcOffset = CommitOffset + 1U,
+  CrcSize = 2U,
+
+  Signature = 0x4B,
+  FormatVersion = 1U,
+  CommitMarker = 0xA5
+};
+}
+
+static_assert(BackupMap::GeneralSize == 38U, "Backup general settings layout has changed");
+static_assert(BackupMap::RingRecordSize == 15U, "Backup band record size has changed");
+static_assert(BackupMap::RingCount == 31U, "Backup band ring count has changed");
+static_assert(BackupMap::MetaOffset == 504U, "Backup metadata offset has changed");
+static_assert(BackupMap::CommitOffset == 507U, "Backup commit marker offset has changed");
+static_assert(BackupMap::CrcLength == 507U, "Backup CRC must cover bytes 0..506");
+static_assert(BackupMap::CrcOffset == 508U, "Backup CRC offset has changed");
+static_assert(BackupMap::SlotSize == 510U, "Backup slot size has changed");
+static_assert(BackupMap::TotalSize == 1020U, "Backup total size has changed");
+
+static_assert(BackupMap::TotalSize <= 1024U, "Backup slots do not fit internal EEPROM");
 
 #if defined(E2END)
-static_assert((E2END + 1UL) >= BACKUP_TOTAL_SIZE, "Internal EEPROM is too small for two backup slots");
+static_assert((E2END + 1UL) >= BackupMap::TotalSize, "Internal EEPROM is too small for two backup slots");
 #endif
 
-static_assert(BACKUP_RING_DATA_OFFSET + BAND_RING_COUNT * BAND_RECORD_SIZE == BACKUP_META_OFFSET,
+static_assert(BackupMap::SelectedBandOffset == BackupMap::GeneralOffset + BackupMap::GeneralSize,
+              "Backup selected band offset is invalid");
+static_assert(BackupMap::RingDataOffset == BackupMap::SelectedBandOffset + 1U,
+              "Backup ring data offset is invalid");
+static_assert(BackupMap::RingDataOffset + BackupMap::RingDataSize == BackupMap::MetaOffset,
               "Backup ring map does not fit the backup slot");
-static_assert(BACKUP_COMMIT_OFFSET + 1U == BACKUP_CRC_OFFSET,
-              "Backup commit marker and CRC offsets overlap");
-static_assert(BACKUP_CRC_OFFSET + 2U == BACKUP_SLOT_SIZE,
+static_assert(BackupMap::VersionOffset == BackupMap::SignatureOffset + 1U &&
+              BackupMap::SlotNumberOffset == BackupMap::VersionOffset + 1U &&
+              BackupMap::CommitOffset == BackupMap::SlotNumberOffset + 1U,
+              "Backup metadata layout is invalid");
+static_assert(BackupMap::CrcOffset == BackupMap::CrcLength + 1U,
+              "Backup CRC offset does not match its input length");
+static_assert(BackupMap::CrcOffset + BackupMap::CrcSize == BackupMap::SlotSize,
               "Backup slot size does not match its CRC position");
 
 // Слоты выбираются вызывающим кодом. Без аргумента используется слот 1.
@@ -1645,7 +1683,7 @@ void bpfset() {
 
 // Адрес начала выбранного слота внутренней EEPROM.
 static uint16_t backupSlotBase(uint8_t slot) {
-  return (uint16_t)((slot - 1U) * BACKUP_SLOT_SIZE);
+  return (uint16_t)((slot - 1U) * BackupMap::SlotSize);
 }
 
 static bool backupSlotNumberValid(uint8_t slot) {
@@ -1653,7 +1691,7 @@ static bool backupSlotNumberValid(uint8_t slot) {
 }
 
 static bool backupInternalEepromAvailable() {
-  return EEPROM.length() >= BACKUP_TOTAL_SIZE;
+  return EEPROM.length() >= BackupMap::TotalSize;
 }
 
 static void backupWriteByte(uint16_t address, uint8_t value) {
@@ -1689,7 +1727,7 @@ static bool backupRecordIsEmpty(const uint8_t *record) {
 
 static void backupReadBandRecord(uint16_t slotBase, uint8_t index,
                                  uint8_t *record) {
-  const uint16_t address = (uint16_t)(slotBase + BACKUP_RING_DATA_OFFSET +
+  const uint16_t address = (uint16_t)(slotBase + BackupMap::RingDataOffset +
                                       (uint16_t)index * BAND_RECORD_SIZE);
   for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
     record[i] = backupReadByte((uint16_t)(address + i));
@@ -1698,7 +1736,7 @@ static void backupReadBandRecord(uint16_t slotBase, uint8_t index,
 
 static void backupWriteBandRecord(uint16_t slotBase, uint8_t index,
                                   const uint8_t *record) {
-  const uint16_t address = (uint16_t)(slotBase + BACKUP_RING_DATA_OFFSET +
+  const uint16_t address = (uint16_t)(slotBase + BackupMap::RingDataOffset +
                                       (uint16_t)index * BAND_RECORD_SIZE);
   for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
     backupWriteByte((uint16_t)(address + i), record[i]);
@@ -1741,19 +1779,19 @@ static bool backupValidateSlot(uint8_t slot) {
 
   const uint16_t base = backupSlotBase(slot);
 
-  if (backupReadByte((uint16_t)(base + BACKUP_META_OFFSET)) != BACKUP_SIGNATURE) return false;
-  if (backupReadByte((uint16_t)(base + BACKUP_META_OFFSET + 1U)) != BACKUP_FORMAT_VERSION) return false;
-  if (backupReadByte((uint16_t)(base + BACKUP_META_OFFSET + 2U)) != slot) return false;
-  if (backupReadByte((uint16_t)(base + BACKUP_COMMIT_OFFSET)) != BACKUP_COMMIT_MARKER) return false;
+  if (backupReadByte((uint16_t)(base + BackupMap::MetaOffset)) != BackupMap::Signature) return false;
+  if (backupReadByte((uint16_t)(base + BackupMap::MetaOffset + 1U)) != BackupMap::FormatVersion) return false;
+  if (backupReadByte((uint16_t)(base + BackupMap::MetaOffset + 2U)) != slot) return false;
+  if (backupReadByte((uint16_t)(base + BackupMap::CommitOffset)) != BackupMap::CommitMarker) return false;
 
   const uint16_t storedCrc =
-      (uint16_t)backupReadByte((uint16_t)(base + BACKUP_CRC_OFFSET)) |
-      ((uint16_t)backupReadByte((uint16_t)(base + BACKUP_CRC_OFFSET + 1U)) << 8);
+      (uint16_t)backupReadByte((uint16_t)(base + BackupMap::CrcOffset)) |
+      ((uint16_t)backupReadByte((uint16_t)(base + BackupMap::CrcOffset + 1U)) << 8);
 
-  if (backupCalculateCrc16(base, BACKUP_CRC_LENGTH) != storedCrc) return false;
+  if (backupCalculateCrc16(base, BackupMap::CrcLength) != storedCrc) return false;
 
-  const uint8_t numberOfBands = backupReadByte((uint16_t)(base + 2U));
-  const uint8_t selectedBand = backupReadByte((uint16_t)(base + sizeof(general_set)));
+  const uint8_t numberOfBands = backupReadByte((uint16_t)(base + BackupMap::GeneralOffset + 2U));
+  const uint8_t selectedBand = backupReadByte((uint16_t)(base + BackupMap::SelectedBandOffset));
 
   if (numberOfBands > max_number_of_bands) return false;
   if (selectedBand > numberOfBands) return false;
@@ -1860,7 +1898,7 @@ void backup(uint8_t slot) {
 
   // Сначала делаем выбранный слот недействительным. Маркер 0xA5
   // будет записан последним, после данных и CRC16.
-  backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
+  backupWriteByte((uint16_t)(base + BackupMap::CommitOffset), 0x00);
 
   // Общие настройки копируются прямо из RAM без изменения поля band.
   const uint8_t *generalBytes = (const uint8_t *)&savedGeneral;
@@ -1868,7 +1906,7 @@ void backup(uint8_t slot) {
     backupWriteByte((uint16_t)(base + i), generalBytes[i]);
   }
 
-  backupWriteByte((uint16_t)(base + sizeof(general_set)), savedBand);
+  backupWriteByte((uint16_t)(base + BackupMap::SelectedBandOffset), savedBand);
 
   uint8_t record[BAND_RECORD_SIZE];
 
@@ -1886,7 +1924,7 @@ void backup(uint8_t slot) {
                                      activeLastPosition, activeLastSequence);
         backupRestoreLogLine(F("Ошибка памяти AT24C32"));
         delay(1000);
-        backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
+        backupWriteByte((uint16_t)(base + BackupMap::CommitOffset), 0x00);
         menu = 0;
         return;
       }
@@ -1900,19 +1938,19 @@ void backup(uint8_t slot) {
                                activeLastPosition, activeLastSequence);
 
   // Служебные поля образа. Маркер завершения пока не записываем.
-  backupWriteByte((uint16_t)(base + BACKUP_META_OFFSET), BACKUP_SIGNATURE);
-  backupWriteByte((uint16_t)(base + BACKUP_META_OFFSET + 1U), BACKUP_FORMAT_VERSION);
-  backupWriteByte((uint16_t)(base + BACKUP_META_OFFSET + 2U), slot);
+  backupWriteByte((uint16_t)(base + BackupMap::MetaOffset), BackupMap::Signature);
+  backupWriteByte((uint16_t)(base + BackupMap::MetaOffset + 1U), BackupMap::FormatVersion);
+  backupWriteByte((uint16_t)(base + BackupMap::MetaOffset + 2U), slot);
 
-  const uint16_t crc = backupCalculateCrc16(base, BACKUP_CRC_LENGTH);
-  backupWriteByte((uint16_t)(base + BACKUP_CRC_OFFSET), (uint8_t)(crc & 0xFF));
-  backupWriteByte((uint16_t)(base + BACKUP_CRC_OFFSET + 1U), (uint8_t)(crc >> 8));
+  const uint16_t crc = backupCalculateCrc16(base, BackupMap::CrcLength);
+  backupWriteByte((uint16_t)(base + BackupMap::CrcOffset), (uint8_t)(crc & 0xFF));
+  backupWriteByte((uint16_t)(base + BackupMap::CrcOffset + 1U), (uint8_t)(crc >> 8));
 
   // Последняя операция формирования слота — маркер готовности.
-  backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), BACKUP_COMMIT_MARKER);
+  backupWriteByte((uint16_t)(base + BackupMap::CommitOffset), BackupMap::CommitMarker);
 
   if (!backupValidateSlot(slot)) {
-    backupWriteByte((uint16_t)(base + BACKUP_COMMIT_OFFSET), 0x00);
+    backupWriteByte((uint16_t)(base + BackupMap::CommitOffset), 0x00);
     backupRestoreLogLine(F("Ошибка бекапа"));
     delay(1000);
     menu = 0;
@@ -2015,9 +2053,9 @@ void restore(uint8_t slot) {
   backupRestoreLogLine(F("Запись настроек"));
 
   general_set restoredGeneral;
-  EEPROM.get(base, restoredGeneral);
+  EEPROM.get((uint16_t)(base + BackupMap::GeneralOffset), restoredGeneral);
 
-  const uint8_t restoredBand = backupReadByte((uint16_t)(base + sizeof(general_set)));
+  const uint8_t restoredBand = backupReadByte((uint16_t)(base + BackupMap::SelectedBandOffset));
   const uint16_t generalChecksum = backupGeneralChecksum(restoredGeneral);
 
   // Сохраняем прежнюю раскладку: CRC в 0..1, структура в 2..39.
