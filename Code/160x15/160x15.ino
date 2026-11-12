@@ -1209,6 +1209,36 @@ static uint8_t memoryCrc8(const uint8_t *data, uint8_t length) {
   return crc;
 }
 
+// Установка и проверка CRC-8 в последнем байте записи.
+static void memorySetRecordCrc(uint8_t *record, uint8_t dataLength) {
+  record[dataLength] = memoryCrc8(record, dataLength);
+}
+
+static bool memoryCheckRecordCrc(const uint8_t *record, uint8_t dataLength) {
+  return memoryCrc8(record, dataLength) == record[dataLength];
+}
+
+// Общий формат диапазонной записи: сигнатура, band_set, CRC-8.
+static void memoryMakeBandRecord(uint8_t *record, uint8_t sequence,
+                                 const band_set &settings) {
+  record[0] = (uint8_t)(0xA0 | (sequence & 0x0F));
+
+  const uint8_t *source = (const uint8_t *)&settings;
+  for (uint8_t i = 0; i < sizeof(settings); i++) {
+    record[i + 1] = source[i];
+  }
+
+  memorySetRecordCrc(record, BAND_RECORD_SIZE - 1);
+}
+
+// Общий формат записи выбора диапазона: сигнатура+band, sequence, CRC-8.
+static void memoryMakeSelectionRecord(uint8_t *record, uint8_t selectedBand,
+                                      uint8_t sequence) {
+  record[0] = (uint8_t)(0xA0 | (selectedBand & 0x1F));
+  record[1] = sequence;
+  memorySetRecordCrc(record, BAND_LOG_RECORD_SIZE - 1);
+}
+
 static bool memorySequenceNewer4(uint8_t candidate, uint8_t current) {
   uint8_t difference = (uint8_t)((candidate - current) & 0x0F);
   return difference != 0 && difference < 8;
@@ -1270,7 +1300,7 @@ static bool memoryFindBandRecord(uint8_t targetBand, bool loadSettings,
                                      (uint8_t)((position + i) % BAND_RING_SIZE));
     }
 
-    if (memoryCrc8(record, BAND_RECORD_SIZE - 1) != record[BAND_RECORD_SIZE - 1]) continue;
+    if (!memoryCheckRecordCrc(record, BAND_RECORD_SIZE - 1)) continue;
 
     uint8_t sequence = (uint8_t)(record[0] & 0x0F);
     if (!found || memorySequenceNewer4(sequence, bestSequence)) {
@@ -1312,10 +1342,7 @@ static bool memoryStoreBandRecord(uint8_t targetBand,
   uint8_t record[BAND_RECORD_SIZE];
   uint8_t verify[BAND_RECORD_SIZE];
 
-  record[0] = (uint8_t)(0xA0 | (sequence & 0x0F));
-  const uint8_t *source = (const uint8_t *)&band_setting;
-  for (uint8_t i = 0; i < sizeof(band_setting); i++) record[i + 1] = source[i];
-  record[BAND_RECORD_SIZE - 1] = memoryCrc8(record, BAND_RECORD_SIZE - 1);
+  memoryMakeBandRecord(record, sequence, band_setting);
 
   for (uint8_t i = 0; i < BAND_RECORD_SIZE - 1; i++) {
     memoryRingWriteByte(base, BAND_RING_SIZE,
@@ -1330,7 +1357,7 @@ static bool memoryStoreBandRecord(uint8_t targetBand,
                                    (uint8_t)((position + i) % BAND_RING_SIZE));
     if (verify[i] != record[i]) return false;
   }
-  if (memoryCrc8(verify, BAND_RECORD_SIZE - 1) != verify[BAND_RECORD_SIZE - 1]) return false;
+  if (!memoryCheckRecordCrc(verify, BAND_RECORD_SIZE - 1)) return false;
 
   memoryBandCacheValid = true;
   memoryBandHasRecord = true;
@@ -1360,7 +1387,7 @@ static bool memoryFindSelectionRecord() {
                                    (uint8_t)((position + 1) % BAND_LOG_RING_SIZE));
     record[2] = memoryRingReadByte(base, BAND_LOG_RING_SIZE,
                                    (uint8_t)((position + 2) % BAND_LOG_RING_SIZE));
-    if (memoryCrc8(record, 2) != record[2]) continue;
+    if (!memoryCheckRecordCrc(record, BAND_LOG_RECORD_SIZE - 1)) continue;
 
     if (!found || memorySequenceNewer8(record[1], bestSequence)) {
       found = true;
@@ -1383,9 +1410,7 @@ static bool memoryStoreSelectionRecord(uint8_t position, uint8_t sequence) {
   uint8_t record[BAND_LOG_RECORD_SIZE];
   uint8_t verify[BAND_LOG_RECORD_SIZE];
 
-  record[0] = (uint8_t)(0xA0 | (band & 0x1F));
-  record[1] = sequence;
-  record[2] = memoryCrc8(record, 2);
+  memoryMakeSelectionRecord(record, band, sequence);
 
   memoryRingWriteByte(base, BAND_LOG_RING_SIZE, position, record[0]);
   memoryRingWriteByte(base, BAND_LOG_RING_SIZE,
@@ -1398,7 +1423,7 @@ static bool memoryStoreSelectionRecord(uint8_t position, uint8_t sequence) {
                                    (uint8_t)((position + i) % BAND_LOG_RING_SIZE));
     if (verify[i] != record[i]) return false;
   }
-  if (memoryCrc8(verify, 2) != verify[2]) return false;
+  if (!memoryCheckRecordCrc(verify, BAND_LOG_RECORD_SIZE - 1)) return false;
 
   memorySelectionHasRecord = true;
   memorySelectionLastPos = position;
@@ -1691,18 +1716,6 @@ static bool backupBandRingIsErased(uint8_t targetBand) {
   return true;
 }
 
-static void backupMakeBandRecord(uint8_t *record, uint8_t sequence,
-                                 const band_set &settings) {
-  record[0] = (uint8_t)(0xA0 | (sequence & 0x0F));
-
-  const uint8_t *source = (const uint8_t *)&settings;
-  for (uint8_t i = 0; i < sizeof(settings); i++) {
-    record[i + 1] = source[i];
-  }
-
-  record[BAND_RECORD_SIZE - 1] = memoryCrc8(record, BAND_RECORD_SIZE - 1);
-}
-
 static void backupRestoreActiveBandCache(uint8_t activeBand, bool hasRecord,
                                          uint8_t lastPosition,
                                          uint8_t lastSequence) {
@@ -1752,7 +1765,7 @@ static bool backupValidateSlot(uint8_t slot) {
     if (backupRecordIsEmpty(record)) continue;
 
     if ((record[0] & 0xF0) != 0xA0) return false;
-    if (memoryCrc8(record, BAND_RECORD_SIZE - 1) != record[BAND_RECORD_SIZE - 1]) return false;
+    if (!memoryCheckRecordCrc(record, BAND_RECORD_SIZE - 1)) return false;
   }
 
   return true;
@@ -1841,7 +1854,7 @@ void backup(uint8_t slot) {
       const uint8_t sequence = activeHasRecord
           ? (uint8_t)((activeLastSequence + 1U) & 0x0F)
           : 0;
-      backupMakeBandRecord(record, sequence, savedActiveSettings);
+      memoryMakeBandRecord(record, sequence, savedActiveSettings);
     }
     else if (!memoryFindBandRecord(index, false, record)) {
       // Повторно убеждаемся, что кольцо не повреждено.
@@ -1925,16 +1938,14 @@ static bool backupVerifyRestoredImage(uint16_t slotBase,
 
     if (!empty &&
         ((verifyRecord[0] & 0xF0) != 0xA0 ||
-         memoryCrc8(verifyRecord, BAND_RECORD_SIZE - 1) != verifyRecord[BAND_RECORD_SIZE - 1])) {
+         !memoryCheckRecordCrc(verifyRecord, BAND_RECORD_SIZE - 1))) {
       return false;
     }
   }
 
   // В служебном кольце должна остаться только одна запись выбора диапазона.
   uint8_t selectionRecord[BAND_LOG_RECORD_SIZE];
-  selectionRecord[0] = (uint8_t)(0xA0 | (restoredBand & 0x1F));
-  selectionRecord[1] = 0;
-  selectionRecord[2] = memoryCrc8(selectionRecord, 2);
+  memoryMakeSelectionRecord(selectionRecord, restoredBand, 0);
 
   const uint16_t selectionBase = memorySelectionBase();
   for (uint8_t position = 0; position < BAND_LOG_RING_SIZE; position++) {
@@ -1945,7 +1956,7 @@ static bool backupVerifyRestoredImage(uint16_t slotBase,
     if (actual != expected) return false;
   }
 
-  return memoryCrc8(selectionRecord, 2) == selectionRecord[2];
+  return memoryCheckRecordCrc(selectionRecord, BAND_LOG_RECORD_SIZE - 1);
 }
 
 static void restoreHalt(const __FlashStringHelper *message) {
@@ -2012,9 +2023,7 @@ void restore(uint8_t slot) {
 
   // Восстанавливаем выбранный диапазон одной штатной записью журнала.
   uint8_t selectionRecord[BAND_LOG_RECORD_SIZE];
-  selectionRecord[0] = (uint8_t)(0xA0 | (restoredBand & 0x1F));
-  selectionRecord[1] = 0;
-  selectionRecord[2] = memoryCrc8(selectionRecord, 2);
+  memoryMakeSelectionRecord(selectionRecord, restoredBand, 0);
 
   const uint16_t selectionBase = memorySelectionBase();
   for (uint8_t i = 0; i < BAND_LOG_RECORD_SIZE; i++) {
