@@ -1,8 +1,10 @@
 /*
- * Изменено: 2026-11-13 19:34 (UTC+10).
- * При повторном выборе делителя для частот выше 150 МГц принудительно задаётся делитель 4.
- * Ранее сохранённый делитель продолжает использоваться, пока частота PLL находится в диапазоне 450–800 МГц.
- * Для частот 150 МГц и ниже сохранён исходный алгоритм расчёта делителя.
+ * GSSx11: алгоритм целочисленного выбора PLL и MultiSynth.
+ * VCOFreq_Min и VCOFreq_Max задают допустимые границы частоты PLL.
+ * VCOFreq_Mid вычисляется в setup() как среднее этих границ.
+ * При выходе PLL за границы делитель пересчитывается как VCOFreq_Mid / Fout;
+ * если результат меньше 6, используется делитель 4.
+ * Дробная ветка CLK2 при активном CLK1 этим алгоритмом не изменяется.
  */
 
 // Full-featured library for Si5351
@@ -48,9 +50,9 @@
 // for fast rdiv shift
 uint8_t power2[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 
-uint32_t Si5351::VCOFreq_Max = 800000000;
-uint32_t Si5351::VCOFreq_Min = 450000000;
-uint32_t Si5351::VCOFreq_Mid = 600000000;
+uint32_t Si5351::VCOFreq_Max = 600000000;
+uint32_t Si5351::VCOFreq_Min = 400000000;
+uint32_t Si5351::VCOFreq_Mid; // = 610000000;
 
 void si5351_write_reg(uint8_t reg, uint8_t data)
 {
@@ -248,17 +250,7 @@ void Si5351::update_freq(uint8_t clk_num)
   pll_freq = divider * freq[clk_num] * power2[rdiv]; //(1 << rdiv);
 
   if (pll_freq < VCOFreq_Min || pll_freq > VCOFreq_Max) {
-    if (freq[clk_num] > 150000000UL) {
-      divider = 4;
-    } else {
-      divider = VCOFreq_Mid / freq[clk_num];
-    }
-    if (divider < 4)
-    {
-      disable_out(clk_num);
-      return;
-    }
-
+    divider = VCOFreq_Mid / freq[clk_num];
     if (divider < 6)
       divider = 4;
 
@@ -303,15 +295,7 @@ void Si5351::update_freq12(uint8_t freq1_changed)
       pll_freq = divider * freq[1] * power2[rdiv]; //(1 << rdiv);
 
       if (pll_freq < VCOFreq_Min || pll_freq > VCOFreq_Max) {
-        if (freq[1] > 150000000UL) {
-          divider = 4;
-        } else {
-          divider = VCOFreq_Mid / freq[1];
-        }
-        if (divider < 4) {
-          disable_out(1);
-          return;
-        }
+        divider = VCOFreq_Mid / freq[1];
         if (divider < 6)
           divider = 4;
         rdiv =  0;
@@ -364,15 +348,7 @@ void Si5351::update_freq12(uint8_t freq1_changed)
     pll_freq = divider * freq[2] * power2[rdiv]; //(1 << rdiv);
 
     if (pll_freq < VCOFreq_Min || pll_freq > VCOFreq_Max) {
-      if (freq[2] > 150000000UL) {
-        divider = 4;
-      } else {
-        divider = VCOFreq_Mid / freq[2];
-      }
-      if (divider < 4) {
-        disable_out(2);
-        return;
-      }
+      divider = VCOFreq_Mid / freq[2];
       if (divider < 6)
         divider = 4;
       rdiv =  0;

@@ -1,10 +1,3 @@
-/*
- * Изменено: 2026-11-13 19:34 (UTC+10).
- * При повторном выборе делителя для частот выше 150 МГц принудительно задаётся делитель 4.
- * Ранее сохранённый делитель продолжает использоваться, пока частота PLL находится в диапазоне 450–800 МГц.
- * Для частот 150 МГц и ниже сохранён исходный алгоритм расчёта делителя.
- */
-
 // Full-featured library for Si5351
 // version 1.0
 // (c) Andrew Bilokon, UR5FFR
@@ -58,8 +51,8 @@ class Si5351 {
   public:
     void cload(uint8_t xtal_load_c);
     void update_freq(uint8_t clk_num);
-    static uint32_t VCOFreq_Max; // == 900000000
-    static uint32_t VCOFreq_Min; // == 600000000
+    static uint32_t VCOFreq_Max;
+    static uint32_t VCOFreq_Min;
 
     Si5351() {
       xtal_freq = 270000000;
