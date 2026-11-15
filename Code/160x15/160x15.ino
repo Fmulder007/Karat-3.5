@@ -64,16 +64,16 @@
 
 
 //#include "Adafruit_SSD1306.h" // Use version 1.2.7!!!
-#include "si5351a.h"
+#include "src/si5351a.h"
 #include "Wire.h"
-#include "Encoder.h"
-#include "Eeprom24C32_64.h"
-#include "OneWire.h"
-#include "DallasTemperature.h"
-#include "DS1307RTC.h"
-#include "GyverTimers.h"
+#include "src/Encoder.h"
+#include "src/Eeprom24C32_64.h"
+#include "src/OneWire.h"
+#include "src/DallasTemperature.h"
+#include "src/DS1307RTC.h"
+#include "src/GyverTimers.h"
 #include "EEPROM.h"
-#include "GyverOLED.h"
+#include "src/GyverOLED.h"
 
 const static uint8_t icons_8x8[][8] PROGMEM = {
   {0x00, 0x44, 0x44, 0x5f, 0x44, 0x44, 0x00, 0x00}, // 0 - +- symbol
