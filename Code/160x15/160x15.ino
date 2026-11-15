@@ -784,6 +784,30 @@ void battmeter () { // Измеритель напряжения питания
   mybatt = (uint16_t)(((uint32_t)rawbatt * general_setting.batt_cal) / 1023UL);
 }
 
+
+void drawPowerBar(uint8_t y, uint16_t pixels) {
+  if (pixels > 248) pixels = 248;
+
+  bool lower = (y == 28);
+  uint8_t shift = lower ? 4 : 0;
+  uint8_t pattern = 0x0F << shift;
+
+  uint8_t full = pixels >> 2;
+  uint8_t rem = pixels & 3;
+
+  display.setCursorXY(x00 - 1, lower ? 24 : 23);
+
+  while (full) {
+    display.drawByte(pattern);
+    --full;
+  }
+
+  if (rem) {
+    uint8_t tail = (0x0F << (4 - rem)) & 0x0F;
+    display.drawByte(tail << shift);
+  }
+}
+
 void mainscreen() { //Процедура рисования главного экрана
   display.clear();
   display.home();
@@ -865,11 +889,15 @@ void mainscreen() { //Процедура рисования главного э�
     uint16_t fwdPixels = fwdpower/3;
     uint16_t revPixels = revpower/3;
 		
-		if (fwdPixels >= 4) display.rect(x00, 23, x00 + (fwdPixels >> 2) - 1, 26, OLED_FILL);
-		if (fwdPixels & 3) display.rect(x00 + (fwdPixels >> 2), 27 - (fwdPixels & 3), x00 + (fwdPixels >> 2), 26, OLED_FILL);
-		
-		if (revPixels >= 4) display.rect(x00, 28, x00 + (revPixels >> 2) - 1, 31, OLED_FILL);
-		if (revPixels & 3) display.rect(x00 + (revPixels >> 2), 32 - (revPixels & 3), x00 + (revPixels >> 2), 31, OLED_FILL);
+		//if (fwdPixels >= 4) display.rect(x00, 23, x00 + (fwdPixels >> 2) - 1, 26, OLED_FILL);
+		//if (fwdPixels & 3) display.rect(x00 + (fwdPixels >> 2), 27 - (fwdPixels & 3), x00 + (fwdPixels >> 2), 26, OLED_FILL);
+    
+    
+		//if (revPixels >= 4) display.rect(x00, 28, x00 + (revPixels >> 2) - 1, 31, OLED_FILL);
+		//if (revPixels & 3) display.rect(x00 + (revPixels >> 2), 32 - (revPixels & 3), x00 + (revPixels >> 2), 31, OLED_FILL);
+
+    drawPowerBar(23, fwdPixels);
+    drawPowerBar(28, revPixels);
       }
       else {// Если прием, то рисовать температуру часы, полосу и диапазон
         //char ddot

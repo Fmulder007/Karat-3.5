@@ -151,7 +151,7 @@
 00000008 d power2
 00000009 t mainscreen()::__c
 00000009 b tempSensor
-0000000a t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::sendByteRaw(unsigned char) [clone .isra.34]
+0000000a t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::sendByteRaw(unsigned char) [clone .isra.31]
 0000000a t port_to_input_PGM
 0000000a t port_to_mode_PGM
 0000000a t port_to_output_PGM
@@ -185,7 +185,7 @@
 00000013 t mainscreen()::__c
 00000013 t mainscreen()::__c
 00000013 t mainscreen()::__c
-00000014 t TwoWire::beginTransmission(unsigned char) [clone .constprop.118]
+00000014 t TwoWire::beginTransmission(unsigned char) [clone .constprop.113]
 00000014 t mainscreen()::__c
 00000014 t mainscreen()::__c
 00000014 t mainscreen()::__c
@@ -237,11 +237,11 @@
 0000001e t restore(unsigned char)::__c
 0000001f t mainscreen()::__c
 00000020 T __mulsi3
-00000020 t i2c_begin_write(unsigned char) [clone .constprop.68]
-00000020 t GyverOneWire::write(unsigned char) [clone .constprop.90]
+00000020 t i2c_begin_write(unsigned char) [clone .constprop.64]
+00000020 t GyverOneWire::write(unsigned char) [clone .constprop.86]
 00000020 b TwoWire::rxBuffer
 00000020 b TwoWire::txBuffer
-00000020 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::clear() [clone .constprop.39]
+00000020 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::clear() [clone .constprop.35]
 00000020 b twi_masterBuffer
 00000020 b twi_rxBuffer
 00000020 b twi_txBuffer
@@ -266,6 +266,7 @@
 00000030 t analogRead
 00000030 t twi_init
 00000034 t void adjustValue<unsigned char>(unsigned char&, bool, bool, unsigned char, unsigned char)
+00000036 t drawIcon8x8(unsigned char)
 00000036 t Print::print(__FlashStringHelper const*) [clone .constprop.21]
 00000036 t twi_handleTimeout
 0000003e t backupBandRingIsErased(unsigned char)
@@ -273,64 +274,62 @@
 00000042 t Print::print(long, int) [clone .part.2] [clone .constprop.9]
 00000044 T __udivmodsi4
 00000046 t backupReadBandRecord(unsigned int, unsigned char, unsigned char*)
-0000004a t Eeprom24C32_64::readByte(unsigned int) [clone .constprop.113]
+0000004a t Eeprom24C32_64::readByte(unsigned int) [clone .constprop.108]
 0000004a t micros
 0000004e t twi_transmit
 00000050 T __vector_1
 00000050 T __vector_2
 00000052 t Print::write(unsigned char const*, unsigned int)
 00000054 T __umulsidi3_helper
-00000056 t backupCalculateCrc16(unsigned int, unsigned int) [clone .constprop.75]
+00000056 t backupCalculateCrc16(unsigned int, unsigned int) [clone .constprop.71]
 0000005a t battmeter()
 0000005a t TwoWire::write(unsigned char const*, unsigned int)
 0000005c t si5351_setup_msynth_int(unsigned char, unsigned long, unsigned char)
 0000005c t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::setWindow(int, int, int, int) [clone .constprop.29]
 0000005e t TwoWire::write(unsigned char)
-00000060 t GyverOneWire::_writeBit(bool, bool) [clone .constprop.92]
+00000060 t GyverOneWire::_writeBit(bool, bool) [clone .constprop.88]
 00000064 t delay
-00000068 t GyverOneWire::readBit() [clone .constprop.94]
-0000006e t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::dot(int, int, unsigned char) [clone .constprop.38]
+00000068 t GyverOneWire::readBit() [clone .constprop.90]
 00000070 t memorySaveGeneralSettings()
 00000070 t twi_stop
-00000072 t GyverOneWire::_write(bool) [clone .constprop.96]
-00000076 t Eeprom24C32_64::writeEE_mem(unsigned int, void const*, int) [clone .constprop.47]
+00000072 t GyverOneWire::_write(bool) [clone .constprop.92]
+00000076 t Eeprom24C32_64::writeEE_mem(unsigned int, void const*, int) [clone .constprop.43]
 0000007c t cwsemitonegen()
-00000080 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::fastLineV(int, int, int, unsigned char) [clone .constprop.36]
 00000084 t Encoder::update(Encoder_internal_state_t*)
-00000094 t GyverDS18Single::_readRAM(unsigned char*) [clone .constprop.79]
+00000084 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::drawByte(unsigned char) [clone .constprop.33]
+00000094 t GyverDS18Single::_readRAM(unsigned char*) [clone .constprop.75]
 00000096 t powermeter()
 000000a2 T __udivmod64
-000000a4 t GyverDS18Single::_beginSkip() [clone .constprop.84]
+000000a4 t GyverDS18Single::_beginSkip() [clone .constprop.80]
+000000a8 t drawPowerBar(unsigned char, unsigned int)
 000000aa T __vector_16
 000000b0 t void adjustValueBy<unsigned long>(unsigned long&, bool, bool, unsigned long, unsigned long, unsigned long)
 000000b4 t Print::printNumber(unsigned long, unsigned char) [clone .constprop.15]
 000000b8 t si5351_write_regs(unsigned char, unsigned long, unsigned long, unsigned long, unsigned char, bool)
-000000c8 t drawIcon8x8(unsigned char)
-000000ca t Si5351::si5351_setup_msynth(unsigned char, unsigned long) [clone .constprop.65]
+000000ca t Si5351::si5351_setup_msynth(unsigned char, unsigned long) [clone .constprop.61]
 000000d2 t tempsensorInit()
 000000d6 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::writeData(unsigned char, unsigned char, unsigned char, int)
-000000d8 t GyverOneWire::pullup(bool) [clone .constprop.98]
-000000e0 t backupValidateSlot(unsigned char) [clone .part.15] [clone .constprop.74]
+000000d8 t GyverOneWire::pullup(bool) [clone .constprop.94]
+000000e0 t backupValidateSlot(unsigned char) [clone .part.15] [clone .constprop.70]
 000000e8 t backupRestoreLogLine(__FlashStringHelper const*, bool)
 000000ee t vfosetup()
-000000f4 t Timer_1::setPeriod(unsigned long) [clone .constprop.59]
+000000f4 t Timer_1::setPeriod(unsigned long) [clone .constprop.55]
 00000102 t bpfset()
-0000010a t DS1307RTC::write(tmElements_t&) [clone .constprop.107]
+0000010a t DS1307RTC::write(tmElements_t&) [clone .constprop.102]
 0000011c t memoryStoreBandRecord(unsigned char, unsigned char, unsigned char)
 00000128 t memoryStoreSelectionRecord(unsigned char, unsigned char)
 0000014e t memoryFindBandRecord(unsigned char, bool, unsigned char*)
 0000017c t timenow()
-000001b2 t twi_readFrom.constprop.122
+000001b2 t twi_readFrom.constprop.117
 000001b4 t tempsensor()
-000001c0 t Si5351::update_freq(unsigned char) [clone .constprop.63]
-000001d6 t TwoWire::endTransmission() [clone .constprop.114]
+000001c0 t Si5351::update_freq(unsigned char) [clone .constprop.59]
+000001d6 t TwoWire::endTransmission() [clone .constprop.109]
 00000222 b display
 0000023e T __vector_24
-0000024e t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::rect(int, int, int, int, unsigned char) [clone .constprop.35]
-0000025e t global constructors keyed to 65535_0_160x15.ino.cpp.o.3354
+0000025e t global constructors keyed to 65535_0_160x15.ino.cpp.o.3343
 00000284 t memory(unsigned char)
 00000320 t _charMap
 00000486 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::write(unsigned char)
-00000548 t Si5351::set_freq(unsigned long, unsigned long, unsigned long) [clone .constprop.54]
-00000f1a t mainscreen()
+00000548 t Si5351::set_freq(unsigned long, unsigned long, unsigned long) [clone .constprop.50]
+00000e72 t mainscreen()
 0000155e T main
