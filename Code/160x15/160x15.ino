@@ -486,6 +486,25 @@ void storetomem() { // Если крутили енкодер, то через 1
   }
 }
 
+// -------- Вспомогательные функции для readencoder() --------
+// Единая логика инкремента/декремента с ограничением диапазона.
+// Полностью эквивалентна прежнему набору if(...) + constrain(...)
+// (с учётом того, что constrain после if даёт тот же результат).
+
+template <typename T>
+inline void adjustValue(T &value, bool inc, bool dec, T minVal, T maxVal) {
+  if (inc && value < maxVal) value++;
+  if (dec && value > minVal) value--;
+  value = (T)constrain(value, minVal, maxVal);
+}
+
+template <typename T>
+inline void adjustValueBy(T &value, bool inc, bool dec, T minVal, T maxVal, T step) {
+  if (inc && value < maxVal) value += step;
+  if (dec && value > minVal) value -= step;
+  value = (T)constrain(value, minVal, maxVal);
+}
+
 void readencoder() { // работа с енкодером
   long newPosition;
   newPosition = myEnc.read() / enc_div;
@@ -493,6 +512,9 @@ void readencoder() { // работа с енкодером
   if (newPosition != oldPosition && digitalRead(myEncBtn)) { // ЕСЛИ КРУТИЛИ энкодер
     if (menu > 0 && menu < 9) actfmenuf = true; // Если крутили энкодер в быстром меню - флаг вверх!
     if ((actenc + minEncSpeed) >= millis()) {
+      const bool inc = (newPosition > oldPosition);
+      const bool dec = (newPosition < oldPosition);
+
       switch (menu) {
         case 0: //Основная настройка частоты
           if (!general_setting.cmode) {
@@ -519,17 +541,15 @@ void readencoder() { // работа с енкодером
           break;
 
         case 1: //Переключение каналов
-          if (newPosition > oldPosition && band < general_setting.number_of_bands) band++;
-          if (newPosition < oldPosition && band > 0) band--;
-          band = constrain(band, 0, general_setting.number_of_bands);
+          adjustValue(band, inc, dec, (uint8_t)0, general_setting.number_of_bands);
           memory(MEM_READ);
           vfosetup();
           break;
 
         case 2: //Настройка ШАГА настройки
-          if (newPosition > oldPosition && general_setting.stp < (sizeof(arraystp) / sizeof(arraystp[0]) - 1)) general_setting.stp++;
-          if (newPosition < oldPosition && general_setting.stp > 0) general_setting.stp--;
-          if (general_setting.stp > (sizeof(arraystp) / sizeof(arraystp[0]) - 1)) general_setting.stp = (sizeof(arraystp) / sizeof(arraystp[0]) - 1);
+          adjustValue(general_setting.stp, inc, dec,
+                      (uint8_t)0,
+                      (uint8_t)(sizeof(arraystp) / sizeof(arraystp[0]) - 1));
           break;
 
         case 3: //Переключение LSB|USB.
@@ -538,9 +558,8 @@ void readencoder() { // работа с енкодером
           break;
 
         case 4: //Переключение If-Shift.
-          if (newPosition > oldPosition && general_setting.if_shift <= 3000) general_setting.if_shift = general_setting.if_shift + 50;
-          if (newPosition < oldPosition && general_setting.if_shift >= -3000) general_setting.if_shift = general_setting.if_shift - 50;
-          general_setting.if_shift = constrain(general_setting.if_shift, -3000, 3000);
+          adjustValueBy(general_setting.if_shift, inc, dec,
+                        (int32_t)-3000, (int32_t)3000, (int32_t)50);
           vfosetup();
           break;
 
@@ -560,55 +579,44 @@ void readencoder() { // работа с енкодером
           break;
 
         case 20: //Настройка min_freq
-          if (newPosition > oldPosition && band_setting.min_freq <= max_hardware_freq) band_setting.min_freq++;
-          if (newPosition < oldPosition && band_setting.min_freq >= min_hardware_freq) band_setting.min_freq--;
-          band_setting.min_freq = constrain(band_setting.min_freq, min_hardware_freq, band_setting.max_freq - 1UL);
+          adjustValue(band_setting.min_freq, inc, dec,
+                      (uint32_t)min_hardware_freq,
+                      band_setting.max_freq - 1UL);
           break;
 
         case 21: //Настройка maxfreq
-          if (newPosition > oldPosition && band_setting.max_freq <= max_hardware_freq) band_setting.max_freq++;
-          if (newPosition < oldPosition && band_setting.max_freq >= min_hardware_freq) band_setting.max_freq--;
-          band_setting.max_freq = constrain(band_setting.max_freq, band_setting.min_freq + 1UL, max_hardware_freq);
+          adjustValue(band_setting.max_freq, inc, dec,
+                      band_setting.min_freq + 1UL,
+                      (uint32_t)max_hardware_freq);
           break;
 
         case 22: // Настройка количества каналов
-          if (newPosition > oldPosition && general_setting.number_of_bands < max_number_of_bands) general_setting.number_of_bands++;
-          if (newPosition < oldPosition && general_setting.number_of_bands > 0) general_setting.number_of_bands--;
-          if (general_setting.number_of_bands > max_number_of_bands) general_setting.number_of_bands = max_number_of_bands;
+          adjustValue(general_setting.number_of_bands, inc, dec,
+                      (uint8_t)0, (uint8_t)max_number_of_bands);
           if (band > general_setting.number_of_bands) band = general_setting.number_of_bands;
           break;
 
         case 23: //Настройка Часов
-          if (newPosition > oldPosition && tm.Hour < 24) tm.Hour++;
-          if (newPosition < oldPosition && tm.Hour > 0) tm.Hour--;
-          if (tm.Hour > 23) tm.Hour = 23;
+          adjustValue(tm.Hour, inc, dec, (uint8_t)0, (uint8_t)23);
           timesetup = true;
           break;
 
         case 24: //Настройка Минут
-          if (newPosition > oldPosition && tm.Minute < 60) tm.Minute++;
-          if (newPosition < oldPosition && tm.Minute > 0) tm.Minute--;
-          if (tm.Minute > 59) tm.Minute = 59;
+          adjustValue(tm.Minute, inc, dec, (uint8_t)0, (uint8_t)59);
           timesetup = true;
           break;
 
         case 25: // Настройка CW-Delay
-          if (newPosition > oldPosition && general_setting.cwdelay < 255) general_setting.cwdelay++;
-          if (newPosition < oldPosition && general_setting.cwdelay > 1) general_setting.cwdelay--;
-          general_setting.cwdelay = constrain(general_setting.cwdelay, 10, 255);
+          adjustValue(general_setting.cwdelay, inc, dec, (uint8_t)10, (uint8_t)255);
           break;
 
         case 26: // Настройка CW-Tone
-          if (newPosition > oldPosition && general_setting.cwtone < 255) general_setting.cwtone++;
-          if (newPosition < oldPosition && general_setting.cwtone > 1) general_setting.cwtone--;
-          general_setting.cwtone = constrain(general_setting.cwtone, 10, 255);
+          adjustValue(general_setting.cwtone, inc, dec, (uint8_t)10, (uint8_t)255);
           break;
 
 
         case 27: // Настройка делителя импульсов энкодера
-          if (newPosition > oldPosition && general_setting.mem_enc_div < 255) general_setting.mem_enc_div++;
-          if (newPosition < oldPosition && general_setting.mem_enc_div > 1) general_setting.mem_enc_div--;
-          general_setting.mem_enc_div = constrain(general_setting.mem_enc_div, 1, 255);
+          adjustValue(general_setting.mem_enc_div, inc, dec, (uint8_t)1, (uint8_t)255);
           break;
 
         case 28: //Инверсия энкодера.
@@ -626,77 +634,76 @@ void readencoder() { // работа с енкодером
           break;
 
         case 101: //Настройка калибровки по питанию
-          if (newPosition > oldPosition && general_setting.batt_cal <= 254) general_setting.batt_cal++;
-          if (newPosition < oldPosition && general_setting.batt_cal >= 100) general_setting.batt_cal--;
-          general_setting.batt_cal = constrain(general_setting.batt_cal, 100, 254);
+          adjustValue(general_setting.batt_cal, inc, dec, (uint8_t)100, (uint8_t)254);
           break;
 
         case 102: //Калибровка термодатчика
-          if (newPosition > oldPosition && general_setting.temp_cal <= 30) general_setting.temp_cal++;
-          if (newPosition < oldPosition && general_setting.temp_cal >= - 30) general_setting.temp_cal--;
-          general_setting.temp_cal = constrain(general_setting.temp_cal, -30, 30);
+          adjustValue(general_setting.temp_cal, inc, dec, (int8_t)-30, (int8_t)30);
           break;
 
         case 103: //Частота кварца синтезатора
-          if (newPosition > oldPosition && general_setting.Si_Xtall_Freq <= Si_Xtall_MaxFreq) general_setting.Si_Xtall_Freq += arraystp[general_setting.stp];
-          if (newPosition < oldPosition && general_setting.Si_Xtall_Freq >= Si_Xtall_MinFreq) general_setting.Si_Xtall_Freq -= arraystp[general_setting.stp];
-          general_setting.Si_Xtall_Freq = constrain(general_setting.Si_Xtall_Freq, Si_Xtall_MinFreq, Si_Xtall_MaxFreq);
+          adjustValueBy(general_setting.Si_Xtall_Freq, inc, dec,
+                        (uint32_t)Si_Xtall_MinFreq,
+                        (uint32_t)Si_Xtall_MaxFreq,
+                        (uint32_t)arraystp[general_setting.stp]);
           si5351correction();
           vfosetup();
           break;
 
         case 104: //F2 LSB
-          if (newPosition > oldPosition && general_setting.lsb_lo_freq <= lo_max_freq) general_setting.lsb_lo_freq += arraystp[general_setting.stp];
-          if (newPosition < oldPosition && general_setting.lsb_lo_freq >= lo_min_freq) general_setting.lsb_lo_freq -= arraystp[general_setting.stp];
-          general_setting.lsb_lo_freq = constrain(general_setting.lsb_lo_freq, lo_min_freq, lo_max_freq);
+          adjustValueBy(general_setting.lsb_lo_freq, inc, dec,
+                        (uint32_t)lo_min_freq,
+                        (uint32_t)lo_max_freq,
+                        (uint32_t)arraystp[general_setting.stp]);
           vfosetup();
           break;
 
         case 105: //F2 USB
-          if (newPosition > oldPosition && general_setting.usb_lo_freq <= lo_max_freq) general_setting.usb_lo_freq += arraystp[general_setting.stp];
-          if (newPosition < oldPosition && general_setting.usb_lo_freq >= lo_min_freq) general_setting.usb_lo_freq -= arraystp[general_setting.stp];
-          general_setting.usb_lo_freq = constrain(general_setting.usb_lo_freq, lo_min_freq, lo_max_freq);
+          adjustValueBy(general_setting.usb_lo_freq, inc, dec,
+                        (uint32_t)lo_min_freq,
+                        (uint32_t)lo_max_freq,
+                        (uint32_t)arraystp[general_setting.stp]);
           vfosetup();
           break;
 
         case 106: //F1
-          if (newPosition > oldPosition && general_setting.bfo_freq <= bfo_max_freq) general_setting.bfo_freq += arraystp[general_setting.stp];
-          if (newPosition < oldPosition && general_setting.bfo_freq >= bfo_min_freq) general_setting.bfo_freq -= arraystp[general_setting.stp];
-          general_setting.bfo_freq = constrain(general_setting.bfo_freq, bfo_min_freq, bfo_max_freq);
+          adjustValueBy(general_setting.bfo_freq, inc, dec,
+                        (uint32_t)bfo_min_freq,
+                        (uint32_t)bfo_max_freq,
+                        (uint32_t)arraystp[general_setting.stp]);
           vfosetup();
           break;
 
         case 107: //Настройка границы b1 переключения ФНЧ передатчика * 100кГц
-          if (newPosition > oldPosition && general_setting.b1 <= general_setting.b2 - 1) general_setting.b1++;
-          if (newPosition < oldPosition && general_setting.b1 >= min_hardware_freq + 1) general_setting.b1--;
-          general_setting.b1 = constrain(general_setting.b1, min_hardware_freq + 1, general_setting.b2 - 1);
+          adjustValue(general_setting.b1, inc, dec,
+                      (uint8_t)(min_hardware_freq + 1),
+                      (uint8_t)(general_setting.b2 - 1));
           bpfset();
           break;
 
         case 108: //Настройка границы b2 переключения ФНЧ передатчика * 100кГц
-          if (newPosition > oldPosition && general_setting.b2 <= general_setting.b3 - 1) general_setting.b2++;
-          if (newPosition < oldPosition && general_setting.b2 >= general_setting.b1 + 1) general_setting.b2--;
-          general_setting.b2 = constrain(general_setting.b2, general_setting.b1 + 1, general_setting.b3 - 1);
+          adjustValue(general_setting.b2, inc, dec,
+                      (uint8_t)(general_setting.b1 + 1),
+                      (uint8_t)(general_setting.b3 - 1));
           bpfset();
           break;
 
         case 109: //Настройка границы b3 переключения ФНЧ передатчика * 100кГц
-          if (newPosition > oldPosition && general_setting.b3 <= general_setting.b4 - 1) general_setting.b3++;
-          if (newPosition < oldPosition && general_setting.b3 >= general_setting.b2 + 1) general_setting.b3--;
-          general_setting.b3 = constrain(general_setting.b3, general_setting.b2 + 1, general_setting.b4 - 1);
+          adjustValue(general_setting.b3, inc, dec,
+                      (uint8_t)(general_setting.b2 + 1),
+                      (uint8_t)(general_setting.b4 - 1));
           bpfset();
           break;
 
         case 110: //Настройка границы b4 переключения ФНЧ передатчика * 100кГц
-          if (newPosition > oldPosition && general_setting.b4 <= 252) general_setting.b4++;
-          if (newPosition < oldPosition && general_setting.b4 >= general_setting.b3 + 1) general_setting.b4--;
-          general_setting.b4 = constrain(general_setting.b4, general_setting.b3 + 1, 252);
+          adjustValue(general_setting.b4, inc, dec,
+                      (uint8_t)(general_setting.b3 + 1),
+                      (uint8_t)252);
           bpfset();
           break;
 
         case 111: // Резервное копирование настроек
-          if (newPosition > oldPosition && backup_index < 10) backup_index++;
-          if (newPosition < oldPosition && backup_index > 0) backup_index--;
+          adjustValue(backup_index, inc, dec, (uint8_t)0, (uint8_t)10);
           if (backup_index == 10) {
             //oldPosition = newPosition;
             backup();
@@ -704,8 +711,7 @@ void readencoder() { // работа с енкодером
           break;
 
         case 112: // Резервное восстановение настроек
-          if (newPosition > oldPosition && restore_index < 10) restore_index++;
-          if (newPosition < oldPosition && restore_index > 0) restore_index--;
+          adjustValue(restore_index, inc, dec, (uint8_t)0, (uint8_t)10);
           if (restore_index == 10) {
             //oldPosition = newPosition;
             restore();
