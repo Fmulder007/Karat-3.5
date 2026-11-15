@@ -28,7 +28,7 @@
 
 #define FullContrast 255
 #define LowContrast 1
-#define x00 66
+#define x00 66 //Положение начала полосок измерения прямой/обратной мощности
 
 #define max_number_of_bands	30 // Максимальное количество диапазонов.
 #define Si_Xtall_MinFreq 22000000UL // Минимальная Частота кварца si5351, Гц.
