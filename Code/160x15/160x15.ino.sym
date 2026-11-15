@@ -1,0 +1,337 @@
+00000001 b timer0_fract
+00000001 b memoryCachedBand
+00000001 b memoryBandLastPos
+00000001 b memoryBandLastSeq
+00000001 b memoryGeneralBand
+00000001 b memoryInitialized
+00000001 b memoryBandHasRecord
+00000001 b memoryBandCacheValid
+00000001 b memorySelectionLastPos
+00000001 b memorySelectionLastSeq
+00000001 b memorySelectionHasRecord
+00000001 b AT24C32
+00000001 b TwoWire::transmitting
+00000001 b TwoWire::rxBufferIndex
+00000001 b TwoWire::txBufferIndex
+00000001 b TwoWire::rxBufferLength
+00000001 b TwoWire::txBufferLength
+00000001 b TwoWire::txAddress
+00000001 b DS1307RTC::exists
+00000001 b backupRestoreLogLine(__FlashStringHelper const*, bool)::lineCount
+00000001 b actencf
+00000001 b actfmenuf
+00000001 d analog_reference
+00000001 b backup_index
+00000001 b band
+00000001 b bpf_set
+00000001 b byteToSend
+00000001 b cwkeycount
+00000001 b cwkeydown
+00000001 b cwsemitoneen
+00000001 b cwtxen
+00000001 d enc_div
+00000001 d knobup
+00000001 b menu
+00000001 b mybatt
+00000001 b pttcount
+00000001 b pttdown
+00000001 b ptten
+00000001 b reqtemp
+00000001 b restore_index
+00000001 b state
+00000001 b temperature
+00000001 b Timer1
+00000001 b timesetup
+00000001 b toneen
+00000001 b twi_do_reset_on_timeout
+00000001 b twi_error
+00000001 b twi_inRepStart
+00000001 b twi_masterBufferIndex
+00000001 b twi_masterBufferLength
+00000001 b twi_rxBufferIndex
+00000001 b twi_sendStop
+00000001 b twi_slarw
+00000001 b twi_state
+00000001 b twi_timed_out_flag
+00000001 b twi_txBufferIndex
+00000001 b twi_txBufferLength
+00000001 b txen
+00000002 T __udivdi3
+00000002 T __umulsidi3
+00000002 t Print::flush()
+00000002 t TwoWire::onReceiveService(unsigned char*, int)
+00000002 t TwoWire::onRequestService()
+00000002 t TwoWire::flush()
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 t mainscreen()::__c
+00000002 b fwdpower
+00000002 b rawbatt
+00000002 b revpower
+00000002 d screenstep
+00000002 b twi_onSlaveReceive
+00000002 b twi_onSlaveTransmit
+00000003 t mainscreen()::__c
+00000003 t mainscreen()::__c
+00000003 t mainscreen()::__c
+00000004 T __umoddi3
+00000004 t EEPROMClass::read(int) [clone .isra.3]
+00000004 b Si5351::VCOFreq_Mid
+00000004 b Encoder::interruptArgs
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 t mainscreen()::__c
+00000004 b actenc
+00000004 b cwkeyreleasetimer
+00000004 b knobMillis
+00000004 b oldPosition
+00000004 b previousdsp
+00000004 b previoustemp
+00000004 b previoustime
+00000004 b pttreleasetimer
+00000004 b timer0_millis
+00000004 b timer0_overflow_count
+00000004 b twi_timeout_us
+00000005 t mainscreen()::__c
+00000005 t mainscreen()::__c
+00000005 t mainscreen()::__c
+00000005 t mainscreen()::__c
+00000005 t mainscreen()::__c
+00000005 t mainscreen()::__c
+00000005 t mainscreen()::__c
+00000006 t Print::availableForWrite()
+00000006 t mainscreen()::__c
+00000006 t versionprint()::__c
+00000006 d CSWTCH.58
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t mainscreen()::__c
+00000007 t versionprint()::__c
+00000007 b tm
+00000008 b backupRestoreLogLine(__FlashStringHelper const*, bool)::lines
+00000008 d power2
+00000009 t mainscreen()::__c
+0000000a t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::sendByteRaw(unsigned char) [clone .isra.24]
+0000000a t port_to_input_PGM
+0000000c T __tablejump2__
+0000000c d vtable for GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>
+0000000c b myEnc
+0000000c b Wire
+0000000d t mainscreen()::__c
+0000000d t mainscreen()::__c
+0000000d t backup(unsigned char)::__c
+0000000d d band_setting
+0000000e t Print::print(unsigned char, int) [clone .constprop.16]
+0000000e t TwoWire::available()
+0000000e t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::beginCommand() [clone .constprop.36]
+0000000e d arraystp
+0000000e T memset
+0000000e b oneWire
+0000000f t _oled_init
+0000000f t mainscreen()::__c
+0000000f t mainscreen()::__c
+0000000f t mainscreen()::__c
+0000000f t backup(unsigned char)::__c
+00000010 T __do_clear_bss
+00000010 T __negsi2
+00000010 t icons_8x8
+00000010 t Print::println() [clone .constprop.26]
+00000010 t delayMicroseconds
+00000010 T eeprom_read_byte
+00000011 t mainscreen()::__c
+00000012 T __muldi3_6
+00000012 d vtable for TwoWire
+00000012 t mainscreen()::__c
+00000013 t mainscreen()::__c
+00000013 t mainscreen()::__c
+00000013 t mainscreen()::__c
+00000014 t TwoWire::beginTransmission(unsigned char) [clone .constprop.117]
+00000014 t mainscreen()::__c
+00000014 t mainscreen()::__c
+00000014 t mainscreen()::__c
+00000014 t mainscreen()::__c
+00000014 t digital_pin_to_bit_mask_PGM
+00000014 t digital_pin_to_port_PGM
+00000015 t versionprint()::__c
+00000016 T __do_copy_data
+00000016 T __do_global_ctors
+00000016 T __muluhisi3
+00000016 T __udivdi3_umoddi3
+00000016 t backupRecordIsEmpty(unsigned char const*)
+00000016 t Print::print(int, int) [clone .constprop.11]
+00000017 t mainscreen()::__c
+00000017 b sensors
+00000018 T __udivmodqi4
+00000018 t Print::println(unsigned char, int) [clone .constprop.15]
+00000018 t Print::println(int, int) [clone .constprop.10]
+00000018 t Print::println(__FlashStringHelper const*) [clone .constprop.24]
+00000018 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::endTransm() [clone .isra.14]
+00000018 t mainscreen()::__c
+00000018 t millis
+00000019 t mainscreen()::__c
+00000019 t mainscreen()::__c
+00000019 t mainscreen()::__c
+00000019 t mainscreen()::__c
+00000019 t mainscreen()::__c
+00000019 t mainscreen()::__c
+00000019 t restore(unsigned char)::__c
+00000019 t restore(unsigned char)::__c
+0000001a t Print::println(unsigned long, int) [clone .constprop.9]
+0000001a t mainscreen()::__c
+0000001a t mainscreen()::__c
+0000001a t backup(unsigned char)::__c
+0000001b t mainscreen()::__c
+0000001b t mainscreen()::__c
+0000001b t mainscreen()::__c
+0000001b t mainscreen()::__c
+0000001b t restore(unsigned char)::__c
+0000001c T eeprom_write_byte
+0000001e T __umulhisi3
+0000001e t TwoWire::peek()
+0000001e t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::setContrast(unsigned char) [clone .constprop.20]
+0000001e t backup(unsigned char)::__c
+0000001e t restore(unsigned char)::__c
+0000001e t restore(unsigned char)::__c
+0000001e t restore(unsigned char)::__c
+0000001e t restore(unsigned char)::__c
+0000001e t restore(unsigned char)::__c
+0000001f t mainscreen()::__c
+00000020 T __mulsi3
+00000020 t i2c_begin_write(unsigned char) [clone .constprop.76]
+00000020 t dscrc2x16_table
+00000020 b TwoWire::rxBuffer
+00000020 b TwoWire::txBuffer
+00000020 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::clear() [clone .constprop.43]
+00000020 b twi_masterBuffer
+00000020 b twi_rxBuffer
+00000020 b twi_txBuffer
+00000021 b si
+00000022 t backup(unsigned char)::__c
+00000022 t backup(unsigned char)::__c
+00000023 t mainscreen()::__c
+00000025 t mainscreen()::__c
+00000026 t TwoWire::read()
+00000026 d general_setting
+00000028 T __divmodhi4
+00000028 T __udivmodhi4
+00000028 t EEPROMClass::update(int, unsigned char) [clone .isra.4]
+0000002a t memoryCheckRecordCrc(unsigned char const*, unsigned char)
+0000002a t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::sendByte(unsigned char) [clone .constprop.34]
+0000002c t si5351_write_reg(unsigned char, unsigned char)
+0000002c t si5351correction()
+0000002c t memoryCrc8(unsigned char const*, unsigned char)
+0000002c t memoryMakeBandRecord(unsigned char*, unsigned char, band_set const&)
+0000002e T __divmodsi4
+0000002e t i2c_write(unsigned char)
+00000030 t OneWire::crc8(unsigned char const*, unsigned char)
+00000030 t analogRead
+00000030 t twi_init
+00000034 t void adjustValue<unsigned char>(unsigned char&, bool, bool, unsigned char, unsigned char)
+00000036 t Print::print(__FlashStringHelper const*) [clone .constprop.25]
+00000036 t twi_handleTimeout
+0000003e t backupBandRingIsErased(unsigned char)
+0000003e t OneWire::select(unsigned char const*)
+00000040 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::update() [clone .constprop.28]
+00000042 t Print::print(long, int) [clone .part.2] [clone .constprop.13]
+00000044 T __udivmodsi4
+00000046 t backupReadBandRecord(unsigned int, unsigned char, unsigned char*)
+0000004a t Eeprom24C32_64::readByte(unsigned int) [clone .constprop.112]
+0000004a t micros
+0000004e t twi_transmit
+00000050 T __vector_1
+00000050 T __vector_2
+00000052 t Print::write(unsigned char const*, unsigned int)
+00000054 T __umulsidi3_helper
+00000056 t backupCalculateCrc16(unsigned int, unsigned int) [clone .constprop.102]
+00000056 t OneWire::read_bit()
+0000005a t battmeter()
+0000005a t TwoWire::write(unsigned char const*, unsigned int)
+0000005c t si5351_setup_msynth_int(unsigned char, unsigned long, unsigned char)
+0000005c t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::setWindow(int, int, int, int) [clone .constprop.33]
+0000005e t TwoWire::write(unsigned char)
+00000066 t OneWire::write_bit(unsigned char)
+00000066 t delay
+00000068 t OneWire::write(unsigned char, unsigned char)
+0000006e t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::dot(int, int, unsigned char) [clone .constprop.42]
+00000070 t memorySaveGeneralSettings()
+00000070 t twi_stop
+00000076 t Eeprom24C32_64::writeEE_mem(unsigned int, void const*, int) [clone .constprop.51]
+0000007c t cwsemitonegen()
+0000007e t OneWire::reset()
+00000080 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::fastLineV(int, int, int, unsigned char) [clone .constprop.40]
+00000084 t Encoder::update(Encoder_internal_state_t*)
+00000096 t powermeter()
+000000a2 T __udivmod64
+000000aa T __vector_16
+000000b0 t void adjustValueBy<unsigned long>(unsigned long&, bool, bool, unsigned long, unsigned long, unsigned long)
+000000b4 t Print::printNumber(unsigned long, unsigned char) [clone .constprop.19]
+000000b8 t si5351_write_regs(unsigned char, unsigned long, unsigned long, unsigned long, unsigned char, bool)
+000000c8 t drawIcon8x8(unsigned char)
+000000ca t Si5351::si5351_setup_msynth(unsigned char, unsigned long) [clone .constprop.73]
+000000d6 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::writeData(unsigned char, unsigned char, unsigned char, int)
+000000e0 t backupValidateSlot(unsigned char) [clone .part.6] [clone .constprop.101]
+000000e4 t DallasTemperature::isConnected(unsigned char const*, unsigned char*) [clone .constprop.92]
+000000e8 t backupRestoreLogLine(__FlashStringHelper const*, bool)
+000000ee t vfosetup()
+000000f0 t digitalWrite
+000000f4 t Timer_1::setPeriod(unsigned long) [clone .constprop.67]
+00000100 t OneWire::search(unsigned char*, bool) [clone .constprop.90]
+00000106 t bpfset()
+0000010a t DS1307RTC::write(tmElements_t&) [clone .constprop.109]
+0000011c t memoryStoreBandRecord(unsigned char, unsigned char, unsigned char)
+00000128 t memoryStoreSelectionRecord(unsigned char, unsigned char)
+0000014e t memoryFindBandRecord(unsigned char, bool, unsigned char*)
+0000017c t timenow()
+000001b2 t twi_readFrom.constprop.121
+000001c0 t Si5351::update_freq(unsigned char) [clone .constprop.71]
+000001d6 t TwoWire::endTransmission() [clone .constprop.113]
+00000222 b display
+0000023e T __vector_24
+0000024e t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::rect(int, int, int, int, unsigned char) [clone .constprop.39]
+00000284 t memory(unsigned char)
+000002be t global constructors keyed to 65535_0_160x15.ino.cpp.o.3066
+00000320 t _charMap
+00000350 t tempsensor()
+00000486 t GyverOLED<0, 1, 0, (signed char)-1, (signed char)-1, (signed char)-1>::write(unsigned char)
+00000548 t Si5351::set_freq(unsigned long, unsigned long, unsigned long) [clone .constprop.62]
+00000f1a t mainscreen()
+000016a2 T main
