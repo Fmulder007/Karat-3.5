@@ -68,8 +68,7 @@
 #include "Wire.h"
 #include "src/Encoder.h"
 #include "src/Eeprom24C32_64.h"
-#include "src/OneWire.h"
-#include "src/DallasTemperature.h"
+#include "src/GyverDS18Single.h"
 #include "src/DS1307RTC.h"
 #include "src/GyverTimers.h"
 #include "EEPROM.h"
@@ -264,8 +263,8 @@ Si5351 si;
 Encoder myEnc(2, 3); //порты подключения енкодера.
 //Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 GyverOLED<SSD1306_128x32, OLED_BUFFER> display;
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
+GyverDS18Single tempSensor(ONE_WIRE_BUS, false);
+bool tempPowerKnown = false;
 tmElements_t tm;
 
 
@@ -305,7 +304,7 @@ void setup() {
   //========================
   digitalWrite(myEncBtn, HIGH);
   analogReference(INTERNAL);
-  sensors.begin();
+  tempsensorInit();
   memory(MEM_READ);
   enc_div = general_setting.mem_enc_div;
   si5351init();
@@ -407,33 +406,73 @@ void tempsensor()
 }
 */
 
+bool tempsensorInit()
+{
+  uint8_t power = tempSensor.readPower();
+
+  if (power == DS18_EXTERNAL)
+  {
+    tempSensor.setParasite(false);
+    tempPowerKnown = true;
+  }
+  else if (power == DS18_PARASITE)
+  {
+    tempSensor.setParasite(true);
+    tempPowerKnown = true;
+  }
+  else
+  {
+    tempSensor.setParasite(false);
+    tempPowerKnown = false;
+    return false;
+  }
+
+  // Узнаём фактическое разрешение, не меняя настройку датчика.
+  uint8_t resolution = tempSensor.readResolution();
+  if (resolution >= 9 && resolution <= 12)
+    tempSensor.applyResolution(resolution);
+
+  return true;
+}
+
 void tempsensor()
 {
   uint32_t now = millis();
 
-  // Запускаем новое измерение раз в секунду
+  // Запускаем новое измерение не чаще одного раза в секунду.
   if (!reqtemp && now - previoustemp >= 1000UL)
   {
-    sensors.setWaitForConversion(false);
-    sensors.requestTemperatures();
+    // Если датчика не было при включении, повторяем обнаружение.
+    if (!tempPowerKnown && !tempsensorInit())
+    {
+      temperature = -126;
+      temperature += general_setting.temp_cal;
+      previoustemp = now;
+      return;
+    }
 
-    reqtemp = true;
-    previoustemp = now;
+    if (tempSensor.requestTemp())
+    {
+      reqtemp = true;
+      previoustemp = now;
+    }
+    else
+    {
+      temperature = -126;
+      temperature += general_setting.temp_cal;
+      previoustemp = now;
+    }
   }
 
-  // Получаем результат через 250 мс
-  if (reqtemp && now - previoustemp >= 250UL)
+  // Читаем только после полного времени преобразования для текущего разрешения.
+  if (reqtemp && tempSensor.ready())
   {
-    DeviceAddress address;
-
-    if (sensors.getAddress(address, 0))
+    if (tempSensor.readTemp())
     {
-      int32_t raw = sensors.getTemp(address);
-
-      if (raw > DEVICE_DISCONNECTED_RAW)
-        temperature = (int8_t)((raw + 64L) / 128L);
-      else
-        temperature = -126;
+      // GyverDS18 хранит температуру в единицах 1/16 °C.
+      // +8 и деление на 16 сохраняют прежнее округление.
+      int16_t raw = tempSensor.getTempRaw();
+      temperature = (int8_t)(((int32_t)raw + 8L) / 16L);
     }
     else
     {
@@ -446,6 +485,7 @@ void tempsensor()
     previoustemp = now;
   }
 }
+
 void txsensor () {
   bool txsens = digitalRead(txsenspin);
   //Если радио на приеме и нажали ТХ то txen = true
