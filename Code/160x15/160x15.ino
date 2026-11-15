@@ -740,7 +740,8 @@ void powermeter () { // Измеритель уровня выхода
 void battmeter () { // Измеритель напряжения питания
   //rawbatt = analogRead(mybattpin);
   rawbatt = (14 * rawbatt + 2 * (analogRead(mybattpin))) >> 4; // Крутой фильтр для усреднения показаний вольтметра!!!
-  mybatt = map(rawbatt, 0, 1023, 0, general_setting.batt_cal);
+  //mybatt = map(rawbatt, 0, 1023, 0, general_setting.batt_cal);
+  mybatt = (uint16_t)(((uint32_t)rawbatt * general_setting.batt_cal) / 1023UL);
 }
 
 void mainscreen() { //Процедура рисования главного экрана
@@ -1243,15 +1244,12 @@ static uint16_t memorySelectionBase() {
                     (uint16_t)BAND_RING_COUNT * BAND_RING_SIZE);
 }
 
-// ringSize теперь параметр шаблона — компилятор превращает % 128 в & 127,
-// а % 88 в умножение на магическую константу. Логика идентична прежней.
-template <uint8_t ringSize>
-static inline uint8_t memoryRingReadByte(uint16_t base, uint8_t position) {
+static uint8_t memoryRingReadByte(uint16_t base, uint8_t ringSize, uint8_t position) {
   return AT24C32.readByte((word)(base + (position % ringSize)));
 }
 
-template <uint8_t ringSize>
-static inline void memoryRingWriteByte(uint16_t base, uint8_t position, uint8_t value) {
+static void memoryRingWriteByte(uint16_t base, uint8_t ringSize,
+                                uint8_t position, uint8_t value) {
   AT24C32.writeEE((word)(base + (position % ringSize)), value);
 }
 
@@ -1351,11 +1349,11 @@ static bool memoryFindBandRecord(uint8_t targetBand, bool loadSettings,
   uint8_t bestPosition = 0;
 
   for (uint8_t position = 0; position < BAND_RING_SIZE; position++) {
-    record[0] = memoryRingReadByte<BAND_RING_SIZE>(base, position);
+    record[0] = memoryRingReadByte(base, BAND_RING_SIZE, position);
     if ((record[0] & 0xF0) != 0xA0) continue;
 
     for (uint8_t i = 1; i < BAND_RECORD_SIZE; i++) {
-      record[i] = memoryRingReadByte<BAND_RING_SIZE>(base,
+      record[i] = memoryRingReadByte(base, BAND_RING_SIZE,
                                      (uint8_t)((position + i) % BAND_RING_SIZE));
     }
 
@@ -1404,15 +1402,15 @@ static bool memoryStoreBandRecord(uint8_t targetBand,
   memoryMakeBandRecord(record, sequence, band_setting);
 
   for (uint8_t i = 0; i < BAND_RECORD_SIZE - 1; i++) {
-    memoryRingWriteByte<BAND_RING_SIZE>(base,
+    memoryRingWriteByte(base, BAND_RING_SIZE,
                         (uint8_t)((position + i) % BAND_RING_SIZE), record[i]);
   }
-  memoryRingWriteByte<BAND_RING_SIZE>(base,
+  memoryRingWriteByte(base, BAND_RING_SIZE,
                       (uint8_t)((position + BAND_RECORD_SIZE - 1) % BAND_RING_SIZE),
                       record[BAND_RECORD_SIZE - 1]);
 
   for (uint8_t i = 0; i < BAND_RECORD_SIZE; i++) {
-    verify[i] = memoryRingReadByte<BAND_RING_SIZE>(base,
+    verify[i] = memoryRingReadByte(base, BAND_RING_SIZE,
                                    (uint8_t)((position + i) % BAND_RING_SIZE));
     if (verify[i] != record[i]) return false;
   }
@@ -1436,15 +1434,15 @@ static bool memoryFindSelectionRecord() {
   uint8_t bestBand = band;
 
   for (uint8_t position = 0; position < BAND_LOG_RING_SIZE; position++) {
-    record[0] = memoryRingReadByte<BAND_LOG_RING_SIZE>(base, position);
+    record[0] = memoryRingReadByte(base, BAND_LOG_RING_SIZE, position);
     if ((record[0] & 0xE0) != 0xA0) continue;
 
     uint8_t candidateBand = (uint8_t)(record[0] & 0x1F);
     if (candidateBand > max_number_of_bands) continue;
 
-    record[1] = memoryRingReadByte<BAND_LOG_RING_SIZE>(base,
+    record[1] = memoryRingReadByte(base, BAND_LOG_RING_SIZE,
                                    (uint8_t)((position + 1) % BAND_LOG_RING_SIZE));
-    record[2] = memoryRingReadByte<BAND_LOG_RING_SIZE>(base,
+    record[2] = memoryRingReadByte(base, BAND_LOG_RING_SIZE,
                                    (uint8_t)((position + 2) % BAND_LOG_RING_SIZE));
     if (!memoryCheckRecordCrc(record, BAND_LOG_RECORD_SIZE - 1)) continue;
 
@@ -1471,14 +1469,14 @@ static bool memoryStoreSelectionRecord(uint8_t position, uint8_t sequence) {
 
   memoryMakeSelectionRecord(record, band, sequence);
 
-  memoryRingWriteByte<BAND_LOG_RING_SIZE>(base, position, record[0]);
-  memoryRingWriteByte<BAND_LOG_RING_SIZE>(base,
+  memoryRingWriteByte(base, BAND_LOG_RING_SIZE, position, record[0]);
+  memoryRingWriteByte(base, BAND_LOG_RING_SIZE,
                       (uint8_t)((position + 1) % BAND_LOG_RING_SIZE), record[1]);
-  memoryRingWriteByte<BAND_LOG_RING_SIZE>(base,
+  memoryRingWriteByte(base, BAND_LOG_RING_SIZE,
                       (uint8_t)((position + 2) % BAND_LOG_RING_SIZE), record[2]);
 
   for (uint8_t i = 0; i < BAND_LOG_RECORD_SIZE; i++) {
-    verify[i] = memoryRingReadByte<BAND_LOG_RING_SIZE>(base,
+    verify[i] = memoryRingReadByte(base, BAND_LOG_RING_SIZE,
                                    (uint8_t)((position + i) % BAND_LOG_RING_SIZE));
     if (verify[i] != record[i]) return false;
   }
@@ -1770,7 +1768,7 @@ static bool backupBandRingIsErased(uint8_t targetBand) {
   const uint16_t base = memoryBandBase(targetBand);
 
   for (uint8_t position = 0; position < BAND_RING_SIZE; position++) {
-    if (memoryRingReadByte<BAND_RING_SIZE>(base, position) != 0xFF) return false;
+    if (memoryRingReadByte(base, BAND_RING_SIZE, position) != 0xFF) return false;
   }
   return true;
 }
