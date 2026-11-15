@@ -812,8 +812,11 @@ void mainscreen() { //Процедура рисования главного э�
 		//display.rect(x00, 23, x00 + map(fwdpower, 1, 1024, 0, (127-x00)), 26, OLED_FILL);
 		//display.rect(x00, 28, x00 + map(revpower, 1, 1024, 0, (127-x00)), 31, OLED_FILL);
 		
-		uint16_t fwdPixels = map(fwdpower, 1, 1024, 0, (128-x00)<<2);
-		uint16_t revPixels = map(revpower, 1, 1024, 0, (128-x00)<<2);
+		//uint16_t fwdPixels = map(fwdpower, 1, 744, 0, (128-x00)<<2);
+		//uint16_t revPixels = map(revpower, 1, 744, 0, (128-x00)<<2);
+
+    uint16_t fwdPixels = fwdpower/3;
+    uint16_t revPixels = revpower/3;
 		
 		if (fwdPixels >= 4) display.rect(x00, 23, x00 + (fwdPixels >> 2) - 1, 26, OLED_FILL);
 		if (fwdPixels & 3) display.rect(x00 + (fwdPixels >> 2), 27 - (fwdPixels & 3), x00 + (fwdPixels >> 2), 26, OLED_FILL);
