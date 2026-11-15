@@ -380,7 +380,7 @@ void timenow () {
     reqtemp = false;
   }
   }*/
-
+/*
 void tempsensor()
 {
   uint32_t now = millis();
@@ -405,7 +405,47 @@ void tempsensor()
     previoustemp = now;
   }
 }
+*/
 
+void tempsensor()
+{
+  uint32_t now = millis();
+
+  // Запускаем новое измерение раз в секунду
+  if (!reqtemp && now - previoustemp >= 1000UL)
+  {
+    sensors.setWaitForConversion(false);
+    sensors.requestTemperatures();
+
+    reqtemp = true;
+    previoustemp = now;
+  }
+
+  // Получаем результат через 250 мс
+  if (reqtemp && now - previoustemp >= 250UL)
+  {
+    DeviceAddress address;
+
+    if (sensors.getAddress(address, 0))
+    {
+      int32_t raw = sensors.getTemp(address);
+
+      if (raw > DEVICE_DISCONNECTED_RAW)
+        temperature = (int8_t)((raw + 64L) / 128L);
+      else
+        temperature = -126;
+    }
+    else
+    {
+      temperature = -126;
+    }
+
+    temperature += general_setting.temp_cal;
+
+    reqtemp = false;
+    previoustemp = now;
+  }
+}
 void txsensor () {
   bool txsens = digitalRead(txsenspin);
   //Если радио на приеме и нажали ТХ то txen = true
