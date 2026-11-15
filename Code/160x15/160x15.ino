@@ -740,7 +740,8 @@ void powermeter () { // Измеритель уровня выхода
 void battmeter () { // Измеритель напряжения питания
   //rawbatt = analogRead(mybattpin);
   rawbatt = (14 * rawbatt + 2 * (analogRead(mybattpin))) >> 4; // Крутой фильтр для усреднения показаний вольтметра!!!
-  mybatt = map(rawbatt, 0, 1023, 0, general_setting.batt_cal);
+  //mybatt = map(rawbatt, 0, 1023, 0, general_setting.batt_cal);
+  mybatt = (uint16_t)(((uint32_t)rawbatt * general_setting.batt_cal) / 1023UL);
 }
 
 void mainscreen() { //Процедура рисования главного экрана
