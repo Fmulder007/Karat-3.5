@@ -809,8 +809,8 @@ void mainscreen() { //Процедура рисования главного э�
             }
           }
         }
-        display.rect(x00, 23, x00 + (map(fwdpower, 1, 1023, 0, 128)), 26, OLED_FILL);
-        display.rect(x00, 28, x00 + (map(revpower, 1, 1023, 0, 128)), 31, OLED_FILL);
+        display.rect(x00, 23, x00 + map(fwdpower, 1, 1024, 0, (127-x00)), 26, OLED_FILL);
+		display.rect(x00, 28, x00 + map(revpower, 1, 1024, 0, (127-x00)), 31, OLED_FILL);
       }
       else {// Если прием, то рисовать температуру часы, полосу и диапазон
         //char ddot
