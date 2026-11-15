@@ -321,7 +321,7 @@
 0000014e t memoryFindBandRecord(unsigned char, bool, unsigned char*)
 0000017c t timenow()
 000001b2 t twi_readFrom.constprop.122
-000001b8 t tempsensor()
+000001b4 t tempsensor()
 000001c0 t Si5351::update_freq(unsigned char) [clone .constprop.63]
 000001d6 t TwoWire::endTransmission() [clone .constprop.114]
 00000222 b display

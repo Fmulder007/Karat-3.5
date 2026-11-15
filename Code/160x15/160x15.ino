@@ -365,47 +365,6 @@ void timenow () {
   }
 }
 
-/*void tempsensor () {
-  if (millis() - previoustemp > 5000 && !reqtemp) {
-    sensors.setWaitForConversion(false);
-    sensors.requestTemperatures();
-    sensors.setWaitForConversion(true);
-    reqtemp = true;
-  }
-  if (millis() - previoustemp > 8000 && reqtemp) {
-    temperature = (int8_t)(0.5 + sensors.getTempCByIndex(0));
-    temperature = temperature + general_setting.temp_cal;
-    previoustemp = millis();
-    reqtemp = false;
-  }
-  }*/
-/*
-void tempsensor()
-{
-  uint32_t now = millis();
-
-  // Запускаем новое измерение раз в секунду
-  if (!reqtemp && now - previoustemp >= 1000UL)
-  {
-    sensors.setWaitForConversion(false);
-    sensors.requestTemperatures();
-
-    reqtemp = true;
-    previoustemp = now;
-  }
-
-  // Получаем результат через 250 мс
-  if (reqtemp && now - previoustemp >= 250UL)
-  {
-    temperature = (int8_t)(0.5f + sensors.getTempCByIndex(0));
-    temperature += general_setting.temp_cal;
-
-    reqtemp = false;
-    previoustemp = now;
-  }
-}
-*/
-
 bool tempsensorInit()
 {
   uint8_t power = tempSensor.readPower();
@@ -472,7 +431,8 @@ void tempsensor()
       // GyverDS18 хранит температуру в единицах 1/16 °C.
       // +8 и деление на 16 сохраняют прежнее округление.
       int16_t raw = tempSensor.getTempRaw();
-      temperature = (int8_t)(((int32_t)raw + 8L) / 16L);
+      //temperature = (int8_t)(((int32_t)raw + 8L) / 16L);
+      temperature = (int8_t)((raw >= 0 ? raw + 8 : raw - 8) / 16);
     }
     else
     {
