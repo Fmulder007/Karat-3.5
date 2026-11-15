@@ -726,9 +726,9 @@ void powermeter () { // Измеритель уровня выхода
   //fwdpower = constrain(analogRead(fwdpin), 1, 1023);
   //revpower = constrain(analogRead(revpin), 1, 1023);
   analogRead(fwdpin);
-  fwdpower = (12 * fwdpower + 4 * (analogRead(fwdpin) + 1)) >> 4;
+  fwdpower = (11 * fwdpower + 5 * (analogRead(fwdpin) + 1)) >> 4;
   analogRead(revpin);
-  revpower = (12 * revpower + 4 * (analogRead(revpin) + 1)) >> 4;
+  revpower = (11 * revpower + 5 * (analogRead(revpin) + 1)) >> 4;
 }
 
 void battmeter () { // Измеритель напряжения питания
@@ -816,10 +816,10 @@ void mainscreen() { //Процедура рисования главного э�
 		uint16_t revPixels = map(revpower, 1, 1024, 0, (128-x00)<<2);
 		
 		if (fwdPixels >= 4) display.rect(x00, 23, x00 + (fwdPixels >> 2) - 1, 26, OLED_FILL);
-		if (fwdPixels & 3) display.rect(x00 + (fwdPixels >> 2), 23, x00 + (fwdPixels >> 2), 22 + (fwdPixels & 3), OLED_FILL);
+		if (fwdPixels & 3) display.rect(x00 + (fwdPixels >> 2), 27 - (fwdPixels & 3), x00 + (fwdPixels >> 2), 26, OLED_FILL);
 		
 		if (revPixels >= 4) display.rect(x00, 28, x00 + (revPixels >> 2) - 1, 31, OLED_FILL);
-		if (revPixels & 3) display.rect(x00 + (revPixels >> 2), 28, x00 + (revPixels >> 2), 27 + (revPixels & 3), OLED_FILL);
+		if (revPixels & 3) display.rect(x00 + (revPixels >> 2), 32 - (revPixels & 3), x00 + (revPixels >> 2), 31, OLED_FILL);
       }
       else {// Если прием, то рисовать температуру часы, полосу и диапазон
         //char ddot
