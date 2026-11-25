@@ -1,4 +1,16 @@
 /*
+ * ИСПРАВЛЕНИЕ ОШИБКИ set_power() — 25.11.2026
+ *
+ * В трёхаргументной функции все три значения мощности ошибочно
+ * направлялись на CLK0 через set_power(0, ...). Каждое следующее
+ * значение перезаписывало предыдущее, а power[1] и power[2]
+ * не обновлялись. Теперь параметры назначаются соответственно
+ * выходам CLK0, CLK1 и CLK2.
+ *
+ * Исправлено: UD0DAB.
+ */
+
+/*
  * GSSx11: алгоритм целочисленного выбора PLL и MultiSynth.
  * VCOFreq_Min и VCOFreq_Max задают допустимые границы частоты PLL.
  * VCOFreq_Mid вычисляется в setup() как среднее этих границ.
@@ -156,8 +168,8 @@ void Si5351::set_power(uint8_t clk_num, uint8_t value)
 void Si5351::set_power(uint8_t power1, uint8_t power2, uint8_t power3)
 {
   set_power(0, power1);
-  set_power(0, power2);
-  set_power(0, power3);
+  set_power(1, power2);
+  set_power(2, power3);
 }
 
 void Si5351::set_xtal_freq(uint32_t freq)
